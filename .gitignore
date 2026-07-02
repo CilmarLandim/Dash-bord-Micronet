@@ -1,0 +1,47 @@
+# Dependências
+node_modules/
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Build
+dist/
+build/
+.next/
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Arquivos temporários
+tmp/
+temp/
+*.tmp
+
+# Documentos gerados
+documentos/
+uploads/
+
+# Cache
+.cache/
+.eslintcache
+
+# Testes
+coverage/
+.nyc_output/
