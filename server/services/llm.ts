@@ -56,8 +56,8 @@ const micronetInfo = {
 
 export async function generateChatResponse(
   userMessage: string,
-  conversationHistory: any[],
-  context?: any
+  _conversationHistory: any[],
+  _context?: any
 ): Promise<AIResponse> {
   // Detecta intenção do usuário
   const lowerMessage = userMessage.toLowerCase();

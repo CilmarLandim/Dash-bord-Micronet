@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Mic, MicOff, Volume2, VolumeX, Loader } from 'lucide-react';
-import { ChatMessage, AIResponse } from '../types';
-import { chatAPI, voiceAPI } from '../services/api';
+import { ChatMessage } from '../types';
+import { chatAPI } from '../services/api';
 import { voiceService } from '../services/voiceService';
 import { toast } from 'sonner';
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Clock, FileText, Printer, Info } from 'lucide-react';
 import ChatInterface from './components/ChatInterface';
 import { chatAPI, timeAPI } from './services/api';

@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 * {
   margin: 0;
@@ -64,28 +62,4 @@ body {
 
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
-}
-
-/* Componentes reutilizáveis */
-.btn-primary {
-  @apply px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold;
-}
-
-.btn-secondary {
-  @apply px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition font-semibold;
-}
-
-.card {
-  @apply bg-white rounded-lg shadow-md p-6;
-}
-
-.input-field {
-  @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500;
-}
-
-/* Responsividade */
-@media (max-width: 768px) {
-  body {
-    font-size: 14px;
-  }
 }
