@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Mic, MicOff, Volume2, VolumeX, Loader } from 'lucide-react';
-import { ChatMessage } from '../types';
-import { chatAPI } from '../services/api';
+import { Send, Mic, MicOff, Volume2, VolumeX, Loader, X } from 'lucide-react';
+import { ChatMessage, AIResponse } from '../types';
+import { chatAPI, voiceAPI } from '../services/api';
 import { voiceService } from '../services/voiceService';
+import { flowService, FlowType } from '../services/flowService';
 import { toast } from 'sonner';
 
 interface ChatInterfaceProps {
@@ -19,6 +20,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [activeFlow, setActiveFlow] = useState<FlowType | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -55,33 +57,83 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const userInput = inputValue;
     setInputValue('');
     setIsLoading(true);
 
     try {
-      // Envia para a IA
-      const response = await chatAPI.sendMessage(sessionId, inputValue);
+      // Se há fluxo ativo, processa como resposta do fluxo
+      if (activeFlow) {
+        const result = flowService.processAnswer(userInput);
+        
+        if (!result.valid) {
+          const errorMessage: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: `❌ ${result.error || 'Resposta inválida'}. Por favor, tente novamente.`,
+            timestamp: new Date(),
+            type: 'text',
+          };
+          setMessages((prev) => [...prev, errorMessage]);
+          toast.error(result.error);
+        } else if (flowService.isFlowCompleted()) {
+          const data = flowService.getCollectedData();
+          const completedMessage: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: '✅ Fluxo concluído! Seus dados foram salvos com sucesso.',
+            timestamp: new Date(),
+            type: 'text',
+          };
+          setMessages((prev) => [...prev, completedMessage]);
+          onDocumentGenerated?.(`doc-${Date.now()}`);
+          setActiveFlow(null);
+          flowService.resetFlow();
+          
+          // Fala a mensagem de conclusão
+          voiceService.speak(completedMessage.content);
+        } else {
+          const nextQuestion = flowService.getNextQuestion();
+          const nextMessage: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: nextQuestion,
+            timestamp: new Date(),
+            type: 'text',
+          };
+          setMessages((prev) => [...prev, nextMessage]);
+          
+          // Fala a próxima pergunta
+          setIsSpeaking(true);
+          voiceService.speak(nextQuestion, () => {
+            setIsSpeaking(false);
+          });
+        }
+      } else {
+        // Envia para a IA
+        const response = await chatAPI.sendMessage(sessionId, userInput);
 
-      // Adiciona resposta da IA
-      const assistantMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response.message,
-        timestamp: new Date(),
-        type: 'text',
-      };
+        // Adiciona resposta da IA
+        const assistantMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: response.message,
+          timestamp: new Date(),
+          type: 'text',
+        };
 
-      setMessages((prev) => [...prev, assistantMessage]);
+        setMessages((prev) => [...prev, assistantMessage]);
 
-      // Fala a resposta
-      setIsSpeaking(true);
-      voiceService.speak(response.message, () => {
-        setIsSpeaking(false);
-      });
+        // Fala a resposta
+        setIsSpeaking(true);
+        voiceService.speak(response.message, () => {
+          setIsSpeaking(false);
+        });
 
-      // Se gerou documento, notifica
-      if (response.action === 'generate_document' && response.documentData?.id) {
-        onDocumentGenerated?.(response.documentData.id);
+        // Se gerou documento, notifica
+        if (response.action === 'generate_document' && response.documentData?.id) {
+          onDocumentGenerated?.(response.documentData.id);
+        }
       }
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
@@ -139,12 +191,52 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
+  const startFlow = (flowType: FlowType) => {
+    flowService.initFlow(flowType);
+    setActiveFlow(flowType);
+    const question = flowService.getNextQuestion();
+    
+    const flowMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: `Iniciando fluxo de ${flowType}. ${question}`,
+      timestamp: new Date(),
+      type: 'text',
+    };
+    
+    setMessages((prev) => [...prev, flowMessage]);
+    voiceService.speak(flowMessage.content);
+  };
+
+  const cancelFlow = () => {
+    setActiveFlow(null);
+    flowService.resetFlow();
+    
+    const cancelMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: 'Fluxo cancelado. Como posso ajudá-lo?',
+      timestamp: new Date(),
+      type: 'text',
+    };
+    
+    setMessages((prev) => [...prev, cancelMessage]);
+    voiceService.speak(cancelMessage.content);
+  };
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow-lg">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 rounded-t-lg">
-        <h2 className="text-xl font-bold">Atendimento Virtual Micronet</h2>
-        <p className="text-sm text-blue-100">Fale ou digite sua pergunta</p>
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 rounded-t-lg flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold">Atendimento Virtual Micronet</h2>
+          <p className="text-sm text-blue-100">Fale ou digite sua pergunta</p>
+        </div>
+        {activeFlow && (
+          <div className="bg-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
+            Fluxo: {activeFlow}
+          </div>
+        )}
       </div>
 
       {/* Mensagens */}
@@ -183,8 +275,66 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Fluxo Ativo */}
+      {activeFlow && (
+        <div className="border-t border-yellow-200 bg-yellow-50 p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+            <span className="text-sm font-semibold text-yellow-800">Fluxo ativo: {activeFlow}</span>
+          </div>
+          <button
+            onClick={cancelFlow}
+            className="text-yellow-700 hover:text-yellow-900 transition"
+            title="Cancelar fluxo"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Input */}
       <div className="border-t border-gray-200 p-4 bg-white rounded-b-lg">
+        {!activeFlow && (
+          <div className="w-full grid grid-cols-3 gap-2 mb-3">
+            <button
+              onClick={() => startFlow('curriculum')}
+              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-semibold"
+            >
+              📄 Currículo
+            </button>
+            <button
+              onClick={() => startFlow('contact')}
+              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-semibold"
+            >
+              📞 Contato
+            </button>
+            <button
+              onClick={() => startFlow('second_copy')}
+              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-semibold"
+            >
+              🔄 2ª Via
+            </button>
+            <button
+              onClick={() => startFlow('research')}
+              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-semibold"
+            >
+              🎓 Pesquisa
+            </button>
+            <button
+              onClick={() => startFlow('report')}
+              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-semibold"
+            >
+              📊 Relatório
+            </button>
+            <button
+              onClick={() => startFlow('proposal')}
+              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-semibold"
+            >
+              💼 Proposta
+            </button>
+          </div>
+        )}
+
         <div className="flex gap-2">
           <input
             ref={inputRef}
@@ -192,7 +342,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Digite sua mensagem..."
+            placeholder={activeFlow ? 'Digite sua resposta...' : 'Digite sua mensagem...'}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={isLoading || isListening}
           />
