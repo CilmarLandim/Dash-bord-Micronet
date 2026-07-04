@@ -1,21 +1,27 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, FileText, Printer, Info } from 'lucide-react';
 import ChatInterface from './components/ChatInterface';
-import { chatAPI, timeAPI } from './services/api';
 import { toast } from 'sonner';
+import trpc from './services/trpcClient';
 
 function App() {
   const [sessionId, setSessionId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [activeTab, setActiveTab] = useState<'chat' | 'info'>('chat');
+  const [micronetInfo, setMicronetInfo] = useState<any>(null);
 
   // Inicializa sessão
   useEffect(() => {
     const initSession = async () => {
       try {
-        const { sessionId } = await chatAPI.startSession();
+        const { sessionId } = await trpc.chat.startSession.mutate();
         setSessionId(sessionId);
+
+        // Carrega informações da Micronet
+        const infoResult = await trpc.info.getMicronetInfo.query();
+        setMicronetInfo(infoResult.data);
+
         setIsLoading(false);
       } catch (error) {
         console.error('Erro ao iniciar sessão:', error);
@@ -43,7 +49,10 @@ function App() {
 
     const recordTime = async () => {
       try {
-        await timeAPI.recordTime(sessionId, elapsedTime);
+        await trpc.time.recordTime.mutate({
+          sessionId,
+          seconds: 30,
+        });
       } catch (error) {
         console.error('Erro ao registrar tempo:', error);
       }
@@ -57,6 +66,10 @@ function App() {
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  const handleDocumentGenerated = (documentId: string) => {
+    toast.success(`Documento gerado: ${documentId}`);
   };
 
   if (isLoading) {
@@ -80,127 +93,124 @@ function App() {
               <h1 className="text-3xl font-bold text-gray-800">Micronet</h1>
               <p className="text-gray-600">Agente Virtual de Atendimento</p>
             </div>
-            <div className="flex items-center gap-4 bg-white rounded-lg shadow-md p-4">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow">
                 <Clock className="w-5 h-5 text-blue-600" />
-                <div>
-                  <p className="text-xs text-gray-500">Tempo de uso</p>
-                  <p className="text-lg font-bold text-gray-800">{formatTime(elapsedTime)}</p>
-                </div>
+                <span className="font-semibold text-gray-800">{formatTime(elapsedTime)}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setActiveTab('chat')}
+                  className={`px-4 py-2 rounded-lg font-semibold transition ${
+                    activeTab === 'chat'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-800 hover:bg-gray-100'
+                  }`}
+                >
+                  💬 Chat
+                </button>
+                <button
+                  onClick={() => setActiveTab('info')}
+                  className={`px-4 py-2 rounded-lg font-semibold transition ${
+                    activeTab === 'info'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-800 hover:bg-gray-100'
+                  }`}
+                >
+                  <Info className="w-5 h-5 inline mr-2" />
+                  Info
+                </button>
               </div>
             </div>
           </div>
-
-          {/* Tabs */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`px-4 py-2 rounded-lg font-semibold transition ${
-                activeTab === 'chat'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-800 hover:bg-gray-100'
-              }`}
-            >
-              💬 Chat
-            </button>
-            <button
-              onClick={() => setActiveTab('info')}
-              className={`px-4 py-2 rounded-lg font-semibold transition ${
-                activeTab === 'info'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-800 hover:bg-gray-100'
-              }`}
-            >
-              <Info className="w-5 h-5 inline mr-2" />
-              Informações
-            </button>
-          </div>
         </div>
 
-        {/* Conteúdo */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Conteúdo Principal */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Chat */}
-          <div className="lg:col-span-2">
-            {activeTab === 'chat' && sessionId && (
-              <ChatInterface
-                sessionId={sessionId}
-                onDocumentGenerated={(docId) => {
-                  toast.success(`Documento ${docId} gerado com sucesso!`);
-                }}
-              />
-            )}
+          <div className="lg:col-span-3">
+            {activeTab === 'chat' ? (
+              <ChatInterface sessionId={sessionId} onDocumentGenerated={handleDocumentGenerated} />
+            ) : (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">Informações da Micronet</h2>
 
-            {activeTab === 'info' && (
-              <div className="bg-white rounded-lg shadow-lg p-6 space-y-4">
-                <h2 className="text-2xl font-bold text-gray-800">Sobre a Micronet</h2>
+                {micronetInfo && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-700">Sobre</h3>
+                      <p className="text-gray-600">{micronetInfo.description}</p>
+                    </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Serviços</h3>
-                  <ul className="space-y-2">
-                    <li className="flex items-center gap-2">
-                      <Printer className="w-5 h-5 text-blue-600" />
-                      <span>Impressão profissional</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-blue-600" />
-                      <span>Cópias e encadernação</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-blue-600" />
-                      <span>Design gráfico</span>
-                    </li>
-                  </ul>
-                </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-700">Versão</h3>
+                      <p className="text-gray-600">{micronetInfo.version}</p>
+                    </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Contato</h3>
-                  <p className="text-gray-600">📞 (11) 3000-0000</p>
-                  <p className="text-gray-600">📧 contato@micronet.com.br</p>
-                  <p className="text-gray-600">📍 Rua Principal, 123 - São Paulo, SP</p>
-                </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-700">Recursos</h3>
+                      <ul className="list-disc list-inside space-y-1">
+                        {micronetInfo.features?.map((feature: string, idx: number) => (
+                          <li key={idx} className="text-gray-600">
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Horário de Funcionamento</h3>
-                  <p className="text-gray-600">Segunda a Sexta: 9h - 18h</p>
-                  <p className="text-gray-600">Sábado: 9h - 13h</p>
-                </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-700">Contato</h3>
+                      <p className="text-gray-600">Email: {micronetInfo.contact?.email}</p>
+                      <p className="text-gray-600">Telefone: {micronetInfo.contact?.phone}</p>
+                      <p className="text-gray-600">Website: {micronetInfo.contact?.website}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           {/* Sidebar */}
           <div className="space-y-4">
-            {/* Fluxos disponíveis */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Fluxos Disponíveis</h3>
+            {/* Estatísticas */}
+            <div className="bg-white rounded-lg shadow-lg p-4">
+              <h3 className="text-lg font-bold text-gray-800 mb-3">Sessão</h3>
               <div className="space-y-2">
-                <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-blue-50 transition text-gray-700">
-                  📄 Currículo
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">ID da Sessão:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded text-xs text-gray-800 font-mono">
+                    {sessionId.substring(0, 8)}...
+                  </code>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Tempo:</span>
+                  <span className="font-semibold text-blue-600">{formatTime(elapsedTime)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Ações Rápidas */}
+            <div className="bg-white rounded-lg shadow-lg p-4">
+              <h3 className="text-lg font-bold text-gray-800 mb-3">Ações Rápidas</h3>
+              <div className="space-y-2">
+                <button className="w-full flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-semibold text-sm">
+                  <FileText className="w-4 h-4" />
+                  Gerar Documento
                 </button>
-                <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-blue-50 transition text-gray-700">
-                  📞 Contato
-                </button>
-                <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-blue-50 transition text-gray-700">
-                  🔄 Segunda Via
-                </button>
-                <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-blue-50 transition text-gray-700">
-                  🎓 Pesquisa Escolar
-                </button>
-                <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-blue-50 transition text-gray-700">
-                  📊 Relatório
-                </button>
-                <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-blue-50 transition text-gray-700">
-                  💼 Proposta
+                <button className="w-full flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 transition font-semibold text-sm">
+                  <Printer className="w-4 h-4" />
+                  Imprimir
                 </button>
               </div>
             </div>
 
-            {/* Dicas */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <h4 className="font-semibold text-yellow-800 mb-2">💡 Dica</h4>
-              <p className="text-sm text-yellow-700">
-                Você pode usar voz ou digitar. Clique no ícone do microfone para começar a falar!
-              </p>
+            {/* Status */}
+            <div className="bg-white rounded-lg shadow-lg p-4">
+              <h3 className="text-lg font-bold text-gray-800 mb-3">Status</h3>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-gray-600 font-semibold">Online</span>
+              </div>
             </div>
           </div>
         </div>

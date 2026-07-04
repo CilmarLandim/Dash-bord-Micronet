@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Mic, MicOff, Volume2, VolumeX, Loader, X } from 'lucide-react';
-import { ChatMessage, AIResponse } from '../types';
-import { chatAPI, voiceAPI } from '../services/api';
+import { ChatMessage } from '../types';
 import { voiceService } from '../services/voiceService';
 import { flowService, FlowType } from '../services/flowService';
 import { toast } from 'sonner';
+import trpc from '../services/trpcClient';
 
 interface ChatInterfaceProps {
   sessionId: string;
@@ -65,7 +65,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // Se há fluxo ativo, processa como resposta do fluxo
       if (activeFlow) {
         const result = flowService.processAnswer(userInput);
-        
+
         if (!result.valid) {
           const errorMessage: ChatMessage = {
             id: (Date.now() + 1).toString(),
@@ -78,20 +78,43 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           toast.error(result.error);
         } else if (flowService.isFlowCompleted()) {
           const data = flowService.getCollectedData();
-          const completedMessage: ChatMessage = {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content: '✅ Fluxo concluído! Seus dados foram salvos com sucesso.',
-            timestamp: new Date(),
-            type: 'text',
-          };
-          setMessages((prev) => [...prev, completedMessage]);
-          onDocumentGenerated?.(`doc-${Date.now()}`);
+
+          // Gera documento
+          try {
+            const documentResult = await trpc.documents.generate.mutate({
+              type: activeFlow,
+              data,
+              format: 'pdf',
+            });
+
+            const completedMessage: ChatMessage = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: `✅ Fluxo concluído! Seu documento foi gerado com sucesso. ID: ${documentResult.document.id}`,
+              timestamp: new Date(),
+              type: 'text',
+            };
+            setMessages((prev) => [...prev, completedMessage]);
+            onDocumentGenerated?.(documentResult.document.id);
+            toast.success('Documento gerado com sucesso!');
+
+            // Fala a mensagem de conclusão
+            voiceService.speak(completedMessage.content);
+          } catch (error) {
+            console.error('Erro ao gerar documento:', error);
+            const errorMsg: ChatMessage = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: '❌ Erro ao gerar documento. Por favor, tente novamente.',
+              timestamp: new Date(),
+              type: 'text',
+            };
+            setMessages((prev) => [...prev, errorMsg]);
+            toast.error('Erro ao gerar documento');
+          }
+
           setActiveFlow(null);
           flowService.resetFlow();
-          
-          // Fala a mensagem de conclusão
-          voiceService.speak(completedMessage.content);
         } else {
           const nextQuestion = flowService.getNextQuestion();
           const nextMessage: ChatMessage = {
@@ -102,7 +125,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             type: 'text',
           };
           setMessages((prev) => [...prev, nextMessage]);
-          
+
           // Fala a próxima pergunta
           setIsSpeaking(true);
           voiceService.speak(nextQuestion, () => {
@@ -110,33 +133,44 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           });
         }
       } else {
-        // Envia para a IA
-        const response = await chatAPI.sendMessage(sessionId, userInput);
+        // Envia para a IA via tRPC
+        try {
+          const response = await trpc.chat.sendMessage.mutate({
+            sessionId,
+            message: userInput,
+          });
 
-        // Adiciona resposta da IA
-        const assistantMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: response.message,
-          timestamp: new Date(),
-          type: 'text',
-        };
+          // Adiciona resposta da IA
+          const assistantMessage: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: response.message,
+            timestamp: new Date(),
+            type: 'text',
+          };
 
-        setMessages((prev) => [...prev, assistantMessage]);
+          setMessages((prev) => [...prev, assistantMessage]);
 
-        // Fala a resposta
-        setIsSpeaking(true);
-        voiceService.speak(response.message, () => {
-          setIsSpeaking(false);
-        });
-
-        // Se gerou documento, notifica
-        if (response.action === 'generate_document' && response.documentData?.id) {
-          onDocumentGenerated?.(response.documentData.id);
+          // Fala a resposta
+          setIsSpeaking(true);
+          voiceService.speak(response.message, () => {
+            setIsSpeaking(false);
+          });
+        } catch (error) {
+          console.error('Erro ao enviar mensagem:', error);
+          const errorMsg: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: '❌ Erro ao processar sua mensagem. Por favor, tente novamente.',
+            timestamp: new Date(),
+            type: 'text',
+          };
+          setMessages((prev) => [...prev, errorMsg]);
+          toast.error('Erro ao processar sua mensagem');
         }
       }
     } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
+      console.error('Erro geral:', error);
       toast.error('Erro ao processar sua mensagem');
     } finally {
       setIsLoading(false);
@@ -195,7 +229,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     flowService.initFlow(flowType);
     setActiveFlow(flowType);
     const question = flowService.getNextQuestion();
-    
+
     const flowMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'assistant',
@@ -203,7 +237,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       timestamp: new Date(),
       type: 'text',
     };
-    
+
     setMessages((prev) => [...prev, flowMessage]);
     voiceService.speak(flowMessage.content);
   };
@@ -211,7 +245,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const cancelFlow = () => {
     setActiveFlow(null);
     flowService.resetFlow();
-    
+
     const cancelMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'assistant',
@@ -219,7 +253,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       timestamp: new Date(),
       type: 'text',
     };
-    
+
     setMessages((prev) => [...prev, cancelMessage]);
     voiceService.speak(cancelMessage.content);
   };
