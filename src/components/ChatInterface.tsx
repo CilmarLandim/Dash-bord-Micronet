@@ -5,6 +5,7 @@ import { voiceService } from '../services/voiceService';
 import { flowService, FlowType } from '../services/flowService';
 import { toast } from 'sonner';
 import trpc from '../services/trpcClient';
+import HeyGenAvatar from './HeyGenAvatar';
 
 interface ChatInterfaceProps {
   sessionId: string;
@@ -288,6 +289,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               }`}
             >
               <p className="text-sm">{message.content}</p>
+              
+              {/* Avatar de Vídeo HeyGen para respostas da IA */}
+              {message.role === 'assistant' && message.type === 'text' && message.id !== '0' && (
+                <HeyGenAvatar text={message.content} />
+              )}
+
               <span className="text-xs opacity-70 mt-1 block">
                 {message.timestamp.toLocaleTimeString('pt-BR', {
                   hour: '2-digit',
