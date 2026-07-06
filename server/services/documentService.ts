@@ -14,6 +14,9 @@ if (!fs.existsSync(DOCUMENTS_DIR)) {
 
 interface DocumentData {
   [key: string]: any;
+  useLetterhead?: boolean; // Opção para incluir papel timbrado
+  companyName?: string; // Nome da empresa para papel timbrado
+  companyLogo?: string; // URL ou caminho do logo
 }
 
 interface GeneratedDocument {

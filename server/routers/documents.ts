@@ -9,11 +9,12 @@ export const documentsRouter = router({
         type: z.enum(['curriculum', 'contact', 'second_copy', 'research', 'report', 'proposal']),
         data: z.record(z.any()),
         format: z.enum(['pdf', 'docx']).default('pdf'),
+        useLetterhead: z.boolean().optional(),
       })
     )
     .mutation(async ({ input }) => {
       try {
-        const document = await generateDocument(input.type, input.data, input.format);
+        const document = await generateDocument(input.type, { ...input.data, useLetterhead: input.useLetterhead }, input.format);
         return {
           success: true,
           document: {

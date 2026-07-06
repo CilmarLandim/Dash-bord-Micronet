@@ -23,8 +23,8 @@ export const HeyGenAvatar: React.FC<HeyGenAvatarProps> = ({ text, autoPlay = tru
     try {
       const result = await trpc.video.generateSpeech.mutate({
         text,
-        // Você pode configurar um avatar padrão aqui
-        avatarId: 'josh_lite_20230714',
+        // Avatar personalizado do usuário
+        avatarId: '02c3bc88b85f4e2084795dcec7f6c18b',
         voiceId: 'pt-BR-AntonioNeural', // Usando voz em português
       });
       setVideoId(result.videoId);
