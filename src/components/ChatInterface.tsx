@@ -19,6 +19,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeFlow, setActiveFlow] = useState<FlowType | null>(null);
@@ -61,6 +62,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const userInput = inputValue;
     setInputValue('');
     setIsLoading(true);
+    setIsThinking(true);
 
     try {
       // Se há fluxo ativo, processa como resposta do fluxo
@@ -154,7 +156,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
           // Fala a resposta
           setIsSpeaking(true);
-          voiceService.speak(response.message, () => {
+          voiceService.speak(assistantMessage.content, () => {
             setIsSpeaking(false);
           });
         } catch (error) {
@@ -175,6 +177,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       toast.error('Erro ao processar sua mensagem');
     } finally {
       setIsLoading(false);
+      setIsThinking(false);
       inputRef.current?.focus();
     }
   };
@@ -305,10 +308,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
         ))}
 
-        {isLoading && (
+        {isThinking && (
           <div className="flex justify-start">
-            <div className="bg-white text-gray-800 border border-gray-200 px-4 py-2 rounded-lg rounded-bl-none">
-              <Loader className="w-5 h-5 animate-spin" />
+            <div className="bg-white text-gray-800 border border-gray-200 px-4 py-2 rounded-lg rounded-bl-none flex items-center gap-2">
+              <div className="flex gap-1">
+                <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+              </div>
+              <span className="text-xs text-gray-500 italic">Micronet está pensando...</span>
             </div>
           </div>
         )}
@@ -426,8 +434,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           {/* Botão de Envio */}
           <button
             onClick={handleSendMessage}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold disabled:opacity-50"
             disabled={!inputValue.trim() || isLoading}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
           >
             <Send className="w-5 h-5" />
           </button>

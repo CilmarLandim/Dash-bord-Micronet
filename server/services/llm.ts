@@ -1,47 +1,8 @@
 import { AIResponse } from '../../src/types';
+import { OpenAI } from 'openai';
 
-// Simulação de respostas da IA
-// Em produção, integrar com OpenAI, Claude, etc.
-
-const flowResponses: Record<string, string[]> = {
-  curriculum: [
-    'Para criar um currículo, preciso de algumas informações. Qual é o seu nome completo?',
-    'Qual é sua experiência profissional mais recente?',
-    'Qual é sua formação acadêmica?',
-    'Quais são suas principais habilidades?',
-    'Seu currículo foi gerado com sucesso! Deseja imprimir?',
-  ],
-  contact: [
-    'Vou ajudá-lo a entrar em contato conosco. Qual é o seu nome?',
-    'Qual é seu email?',
-    'Qual é seu telefone?',
-    'Qual é o assunto do seu contato?',
-    'Sua mensagem foi registrada. Entraremos em contato em breve!',
-  ],
-  second_copy: [
-    'Para solicitar uma segunda via, qual documento você precisa?',
-    'Qual é o número do documento?',
-    'Sua segunda via foi gerada. Deseja imprimir?',
-  ],
-  research: [
-    'Vou ajudá-lo com uma pesquisa escolar. Qual é o tema?',
-    'Qual é a série ou nível escolar?',
-    'Quantas páginas você precisa?',
-    'Sua pesquisa foi gerada com sucesso!',
-  ],
-  report: [
-    'Vou ajudá-lo a gerar um relatório. Qual é o tipo?',
-    'Qual é o período do relatório?',
-    'Quais dados você gostaria de incluir?',
-    'Seu relatório foi gerado com sucesso!',
-  ],
-  proposal: [
-    'Vou ajudá-lo a criar uma proposta. Qual é o tipo?',
-    'Descreva os detalhes da proposta',
-    'Qual é o valor?',
-    'Sua proposta foi gerada com sucesso!',
-  ],
-};
+// Cliente OpenAI configurado automaticamente para o proxy da Manus
+const client = new OpenAI();
 
 const micronetInfo = {
   name: 'Micronet',
@@ -54,132 +15,75 @@ const micronetInfo = {
   },
 };
 
+const SYSTEM_PROMPT = `Você é o Agente Micronet, um assistente virtual inteligente e prestativo da empresa Micronet.
+Sua missão é ajudar os usuários com serviços de impressão, cópias, design gráfico e, principalmente, na geração de documentos.
+
+Informações sobre a Micronet:
+- Serviços: ${micronetInfo.services.join(', ')}
+- Contato: ${micronetInfo.contact.phone} | ${micronetInfo.contact.email}
+- Endereço: ${micronetInfo.contact.address}
+
+Fluxos de Documentos Disponíveis:
+1. Currículo (curriculum): Gere currículos profissionais.
+2. Contato (contact): Registre mensagens para a equipe.
+3. Segunda Via (second_copy): Solicite 2ª via de documentos.
+4. Pesquisa Escolar (research): Crie pesquisas completas.
+5. Relatório (report): Gere relatórios personalizados.
+6. Proposta (proposal): Crie propostas comerciais.
+
+Diretrizes de Resposta:
+- Seja sempre educado, profissional e direto.
+- Se o usuário quiser iniciar um dos fluxos acima, você deve encorajá-lo a clicar nos botões de atalho ou dizer claramente que vai iniciar o fluxo.
+- Suas respostas devem ser curtas e adequadas para serem lidas em voz alta (TTS).
+- Use português do Brasil (pt-BR).
+- Se não souber algo, direcione o usuário para o contato humano da Micronet.`;
+
 export async function generateChatResponse(
   userMessage: string,
-  _conversationHistory: any[],
+  conversationHistory: any[],
   _context?: any
 ): Promise<AIResponse> {
-  // Detecta intenção do usuário
-  const lowerMessage = userMessage.toLowerCase();
+  try {
+    // Formata o histórico para o formato da OpenAI
+    const messages = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...conversationHistory.map((msg: any) => ({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.content,
+      })),
+      { role: 'user', content: userMessage },
+    ];
 
-  // Respostas sobre Micronet
-  if (
-    lowerMessage.includes('micronet') ||
-    lowerMessage.includes('empresa') ||
-    lowerMessage.includes('serviço') ||
-    lowerMessage.includes('o que vocês fazem')
-  ) {
-    return {
-      message: `A ${micronetInfo.name} oferece os seguintes serviços: ${micronetInfo.services.join(', ')}. 
-      Entre em contato: ${micronetInfo.contact.phone} ou ${micronetInfo.contact.email}`,
-      action: 'provide_info',
-    };
-  }
+    const response = await client.chat.completions.create({
+      model: 'gpt-5-mini',
+      messages: messages as any,
+      max_tokens: 500,
+      temperature: 0.7,
+    });
 
-  // Detecta fluxo de currículo
-  if (lowerMessage.includes('currículo') || lowerMessage.includes('cv')) {
-    return {
-      message: flowResponses.curriculum[0],
-      action: 'ask_question',
-      nextQuestion: {
-        id: 'name',
-        text: 'Qual é o seu nome completo?',
-        type: 'text',
-        required: true,
-      },
-    };
-  }
+    const aiMessage = response.choices[0].message.content || 'Desculpe, não consegui processar sua solicitação.';
 
-  // Detecta fluxo de contato
-  if (
-    lowerMessage.includes('contato') ||
-    lowerMessage.includes('falar') ||
-    lowerMessage.includes('dúvida')
-  ) {
-    return {
-      message: flowResponses.contact[0],
-      action: 'ask_question',
-      nextQuestion: {
-        id: 'contact_name',
-        text: 'Qual é o seu nome?',
-        type: 'text',
-        required: true,
-      },
-    };
-  }
-
-  // Detecta fluxo de segunda via
-  if (lowerMessage.includes('segunda via') || lowerMessage.includes('2ª via')) {
-    return {
-      message: flowResponses.second_copy[0],
-      action: 'ask_question',
-      nextQuestion: {
-        id: 'doc_type',
-        text: 'Qual documento você precisa?',
-        type: 'select',
-        required: true,
-        options: ['RG', 'CPF', 'Carteira de Trabalho', 'Comprovante de Residência'],
-      },
-    };
-  }
-
-  // Detecta fluxo de pesquisa
-  if (lowerMessage.includes('pesquisa') || lowerMessage.includes('trabalho escolar')) {
-    return {
-      message: flowResponses.research[0],
-      action: 'ask_question',
-      nextQuestion: {
-        id: 'research_theme',
-        text: 'Qual é o tema da pesquisa?',
-        type: 'text',
-        required: true,
-      },
-    };
-  }
-
-  // Detecta fluxo de relatório
-  if (lowerMessage.includes('relatório')) {
-    return {
-      message: flowResponses.report[0],
-      action: 'ask_question',
-      nextQuestion: {
-        id: 'report_type',
-        text: 'Qual é o tipo de relatório?',
-        type: 'select',
-        required: true,
-        options: ['Vendas', 'Financeiro', 'Operacional', 'Outro'],
-      },
-    };
-  }
-
-  // Detecta fluxo de proposta
-  if (lowerMessage.includes('proposta')) {
-    return {
-      message: flowResponses.proposal[0],
-      action: 'ask_question',
-      nextQuestion: {
-        id: 'proposal_type',
-        text: 'Qual é o tipo de proposta?',
-        type: 'text',
-        required: true,
-      },
-    };
-  }
-
-  // Resposta padrão
-  return {
-    message: `Entendi sua pergunta: "${userMessage}". 
-    Como posso ajudá-lo? Posso gerar documentos como:
-    • Currículo
-    • Contato
-    • Segunda via
-    • Pesquisa escolar
-    • Relatório
-    • Proposta
+    // Lógica simples para detectar intenção de iniciar fluxo via texto
+    let action: 'provide_info' | 'ask_question' = 'ask_question';
+    const lowerMessage = userMessage.toLowerCase();
     
-    Ou você gostaria de saber mais sobre a Micronet?`,
-    action: 'ask_question',
-  };
+    if (lowerMessage.includes('currículo') || lowerMessage.includes('cv')) {
+      action = 'ask_question';
+    } else if (lowerMessage.includes('contato') || lowerMessage.includes('falar')) {
+      action = 'provide_info';
+    }
+
+    return {
+      message: aiMessage,
+      action: action,
+    };
+  } catch (error) {
+    console.error('Erro ao chamar LLM:', error);
+    return {
+      message: 'Olá! No momento estou operando em modo simplificado. Como posso ajudar você com nossos serviços de impressão ou documentos?',
+      action: 'ask_question',
+    };
+  }
 }
 
 export async function generateDocument(

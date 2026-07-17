@@ -1,335 +1,117 @@
-// Tipos de fluxos e estados
 export type FlowType = 'curriculum' | 'contact' | 'second_copy' | 'research' | 'report' | 'proposal';
 
-export interface FlowState {
-  type: FlowType;
-  step: number;
-  data: Record<string, any>;
-  completed: boolean;
+export interface FlowResult {
+  valid: boolean;
+  error?: string;
 }
 
-export interface FlowStep {
-  question: string;
-  field: string;
+export interface Question {
+  id: string;
+  text: string;
+  type: 'text' | 'email' | 'phone' | 'number' | 'select';
+  options?: string[];
+  required: boolean;
   validation?: (value: string) => boolean;
-  errorMessage?: string;
 }
 
-// Definição dos fluxos
-const FLOWS: Record<FlowType, FlowStep[]> = {
-  curriculum: [
-    {
-      question: 'Qual é seu nome completo?',
-      field: 'fullName',
-      validation: (v) => v.length >= 3,
-      errorMessage: 'Por favor, forneça um nome válido',
-    },
-    {
-      question: 'Qual é sua experiência profissional? (descreva brevemente)',
-      field: 'experience',
-      validation: (v) => v.length >= 10,
-      errorMessage: 'Por favor, descreva sua experiência',
-    },
-    {
-      question: 'Qual é sua formação acadêmica?',
-      field: 'education',
-      validation: (v) => v.length >= 5,
-      errorMessage: 'Por favor, descreva sua formação',
-    },
-    {
-      question: 'Quais são suas principais habilidades?',
-      field: 'skills',
-      validation: (v) => v.length >= 5,
-      errorMessage: 'Por favor, liste suas habilidades',
-    },
-  ],
-  contact: [
-    {
-      question: 'Qual é seu nome?',
-      field: 'name',
-      validation: (v) => v.length >= 3,
-      errorMessage: 'Por favor, forneça um nome válido',
-    },
-    {
-      question: 'Qual é seu email?',
-      field: 'email',
-      validation: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
-      errorMessage: 'Por favor, forneça um email válido',
-    },
-    {
-      question: 'Qual é seu telefone?',
-      field: 'phone',
-      validation: (v) => /^[\d\s\-\(\)]+$/.test(v) && v.length >= 10,
-      errorMessage: 'Por favor, forneça um telefone válido',
-    },
-    {
-      question: 'Qual é o assunto da sua mensagem?',
-      field: 'subject',
-      validation: (v) => v.length >= 5,
-      errorMessage: 'Por favor, descreva o assunto',
-    },
-    {
-      question: 'Qual é sua mensagem?',
-      field: 'message',
-      validation: (v) => v.length >= 10,
-      errorMessage: 'Por favor, descreva sua mensagem',
-    },
-  ],
-  second_copy: [
-    {
-      question: 'Qual tipo de documento você precisa? (RG, CPF, Certidão, etc)',
-      field: 'documentType',
-      validation: (v) => v.length >= 2,
-      errorMessage: 'Por favor, especifique o tipo de documento',
-    },
-    {
-      question: 'Qual é o número do documento?',
-      field: 'documentNumber',
-      validation: (v) => v.length >= 5,
-      errorMessage: 'Por favor, forneça o número do documento',
-    },
-    {
-      question: 'Qual é o nome completo do titular?',
-      field: 'holderName',
-      validation: (v) => v.length >= 3,
-      errorMessage: 'Por favor, forneça um nome válido',
-    },
-  ],
-  research: [
-    {
-      question: 'Qual é o tema da pesquisa?',
-      field: 'topic',
-      validation: (v) => v.length >= 5,
-      errorMessage: 'Por favor, descreva o tema',
-    },
-    {
-      question: 'Qual é o nível/série? (Fundamental, Médio, Superior, etc)',
-      field: 'level',
-      validation: (v) => v.length >= 3,
-      errorMessage: 'Por favor, especifique o nível',
-    },
-    {
-      question: 'Quantas páginas você precisa?',
-      field: 'pages',
-      validation: (v) => /^\d+$/.test(v) && parseInt(v) > 0,
-      errorMessage: 'Por favor, forneça um número válido de páginas',
-    },
-    {
-      question: 'Há alguma instrução especial?',
-      field: 'instructions',
-      validation: (v) => true, // Opcional
-      errorMessage: '',
-    },
-  ],
-  report: [
-    {
-      question: 'Qual é o tipo de relatório? (Técnico, Administrativo, Financeiro, etc)',
-      field: 'reportType',
-      validation: (v) => v.length >= 3,
-      errorMessage: 'Por favor, especifique o tipo de relatório',
-    },
-    {
-      question: 'Qual é o período? (Ex: Janeiro a Março de 2024)',
-      field: 'period',
-      validation: (v) => v.length >= 5,
-      errorMessage: 'Por favor, especifique o período',
-    },
-    {
-      question: 'Qual é o departamento ou área?',
-      field: 'department',
-      validation: (v) => v.length >= 3,
-      errorMessage: 'Por favor, especifique o departamento',
-    },
-    {
-      question: 'Quais dados específicos devem ser incluídos?',
-      field: 'specificData',
-      validation: (v) => v.length >= 5,
-      errorMessage: 'Por favor, descreva os dados necessários',
-    },
-  ],
-  proposal: [
-    {
-      question: 'Qual é o tipo de proposta? (Comercial, Técnica, Projeto, etc)',
-      field: 'proposalType',
-      validation: (v) => v.length >= 3,
-      errorMessage: 'Por favor, especifique o tipo de proposta',
-    },
-    {
-      question: 'Qual é o cliente ou destinatário?',
-      field: 'client',
-      validation: (v) => v.length >= 3,
-      errorMessage: 'Por favor, forneça o nome do cliente',
-    },
-    {
-      question: 'Descreva o escopo/detalhes da proposta',
-      field: 'scope',
-      validation: (v) => v.length >= 10,
-      errorMessage: 'Por favor, descreva o escopo',
-    },
-    {
-      question: 'Qual é o valor/investimento?',
-      field: 'value',
-      validation: (v) => /^[\d\.,]+$/.test(v),
-      errorMessage: 'Por favor, forneça um valor válido',
-    },
-    {
-      question: 'Qual é o prazo de validade da proposta?',
-      field: 'validity',
-      validation: (v) => v.length >= 3,
-      errorMessage: 'Por favor, especifique o prazo',
-    },
-  ],
-};
-
-// Serviço de gerenciamento de fluxos
 export class FlowService {
-  private currentFlow: FlowState | null = null;
+  private currentFlow: FlowType | null = null;
+  private currentStep = 0;
+  private collectedData: Record<string, any> = {};
 
-  initFlow(flowType: FlowType): FlowState {
-    this.currentFlow = {
-      type: flowType,
-      step: 0,
-      data: {},
-      completed: false,
-    };
-    return this.currentFlow;
-  }
+  private flows: Record<FlowType, Question[]> = {
+    curriculum: [
+      { id: 'fullName', text: 'Qual é o seu nome completo?', type: 'text', required: true },
+      { id: 'email', text: 'Qual é o seu e-mail?', type: 'email', required: true },
+      { id: 'phone', text: 'Qual é o seu telefone?', type: 'phone', required: true },
+      { id: 'experience', text: 'Fale um pouco sobre sua experiência profissional.', type: 'text', required: true },
+      { id: 'education', text: 'Qual sua formação acadêmica?', type: 'text', required: true },
+      { id: 'skills', text: 'Quais são suas principais habilidades?', type: 'text', required: true },
+    ],
+    contact: [
+      { id: 'name', text: 'Qual é o seu nome?', type: 'text', required: true },
+      { id: 'email', text: 'Qual é o seu e-mail?', type: 'email', required: true },
+      { id: 'subject', text: 'Qual o assunto do contato?', type: 'text', required: true },
+      { id: 'message', text: 'Digite sua mensagem.', type: 'text', required: true },
+    ],
+    second_copy: [
+      { id: 'documentType', text: 'Qual documento você precisa?', type: 'select', options: ['RG', 'CPF', 'CNH', 'Título de Eleitor'], required: true },
+      { id: 'documentNumber', text: 'Qual o número do documento?', type: 'text', required: true },
+      { id: 'holderName', text: 'Qual o nome do titular?', type: 'text', required: true },
+    ],
+    research: [
+      { id: 'topic', text: 'Qual o tema da pesquisa?', type: 'text', required: true },
+      { id: 'level', text: 'Qual o nível escolar?', type: 'text', required: true },
+      { id: 'pages', text: 'Quantas páginas você precisa?', type: 'number', required: true },
+    ],
+    report: [
+      { id: 'reportType', text: 'Qual o tipo de relatório?', type: 'text', required: true },
+      { id: 'period', text: 'Qual o período (ex: Janeiro/2024)?', type: 'text', required: true },
+      { id: 'details', text: 'Quais detalhes incluir?', type: 'text', required: true },
+    ],
+    proposal: [
+      { id: 'clientName', text: 'Para qual cliente é a proposta?', type: 'text', required: true },
+      { id: 'service', text: 'Qual serviço será proposto?', type: 'text', required: true },
+      { id: 'value', text: 'Qual o valor estimado?', type: 'number', required: true },
+    ],
+  };
 
-  getCurrentFlow(): FlowState | null {
-    return this.currentFlow;
-  }
-
-  getCurrentStep(): FlowStep | null {
-    if (!this.currentFlow) return null;
-    const flow = FLOWS[this.currentFlow.type];
-    if (this.currentFlow.step >= flow.length) return null;
-    return flow[this.currentFlow.step];
+  initFlow(type: FlowType) {
+    this.currentFlow = type;
+    this.currentStep = 0;
+    this.collectedData = {};
   }
 
   getNextQuestion(): string {
-    const step = this.getCurrentStep();
-    return step?.question || 'Fluxo concluído!';
+    if (!this.currentFlow) return '';
+    const questions = this.flows[this.currentFlow];
+    return questions[this.currentStep].text;
   }
 
-  processAnswer(answer: string): { valid: boolean; error?: string } {
-    if (!this.currentFlow) {
-      return { valid: false, error: 'Nenhum fluxo ativo' };
+  processAnswer(answer: string): FlowResult {
+    if (!this.currentFlow) return { valid: false, error: 'Nenhum fluxo ativo' };
+    
+    const questions = this.flows[this.currentFlow];
+    const question = questions[this.currentStep];
+
+    // Validações básicas
+    if (question.required && !answer.trim()) {
+      return { valid: false, error: 'Este campo é obrigatório' };
     }
 
-    const step = this.getCurrentStep();
-    if (!step) {
-      return { valid: false, error: 'Fluxo concluído' };
+    if (question.type === 'email') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(answer)) {
+        return { valid: false, error: 'E-mail inválido' };
+      }
     }
 
-    // Valida resposta
-    if (step.validation && !step.validation(answer)) {
-      return { valid: false, error: step.errorMessage };
+    if (question.type === 'phone') {
+      const phoneRegex = /^\(?\d{2}\)?\s?\d{4,5}-?\d{4}$/;
+      const digitsOnly = answer.replace(/\D/g, '');
+      if (digitsOnly.length < 10) {
+        return { valid: false, error: 'Telefone inválido. Use (11) 99999-9999' };
+      }
     }
 
-    // Armazena resposta
-    this.currentFlow.data[step.field] = answer;
-
-    // Avança para próximo passo
-    this.currentFlow.step++;
-
-    // Verifica se fluxo foi concluído
-    const flow = FLOWS[this.currentFlow.type];
-    if (this.currentFlow.step >= flow.length) {
-      this.currentFlow.completed = true;
-    }
-
+    this.collectedData[question.id] = answer;
+    this.currentStep++;
     return { valid: true };
   }
 
   isFlowCompleted(): boolean {
-    return this.currentFlow?.completed || false;
+    if (!this.currentFlow) return false;
+    return this.currentStep >= this.flows[this.currentFlow].length;
   }
 
-  getCollectedData(): Record<string, any> {
-    return this.currentFlow?.data || {};
+  getCollectedData() {
+    return this.collectedData;
   }
 
-  resetFlow(): void {
+  resetFlow() {
     this.currentFlow = null;
-  }
-
-  // Gera resumo do fluxo para documento
-  generateSummary(): string {
-    if (!this.currentFlow) return '';
-
-    const { type, data } = this.currentFlow;
-    let summary = '';
-
-    switch (type) {
-      case 'curriculum':
-        summary = `
-CURRÍCULO
-
-Nome: ${data.fullName}
-Experiência: ${data.experience}
-Formação: ${data.education}
-Habilidades: ${data.skills}
-        `;
-        break;
-
-      case 'contact':
-        summary = `
-FORMULÁRIO DE CONTATO
-
-Nome: ${data.name}
-Email: ${data.email}
-Telefone: ${data.phone}
-Assunto: ${data.subject}
-Mensagem: ${data.message}
-        `;
-        break;
-
-      case 'second_copy':
-        summary = `
-SOLICITAÇÃO DE SEGUNDA VIA
-
-Tipo de Documento: ${data.documentType}
-Número: ${data.documentNumber}
-Titular: ${data.holderName}
-        `;
-        break;
-
-      case 'research':
-        summary = `
-PESQUISA ESCOLAR
-
-Tema: ${data.topic}
-Nível: ${data.level}
-Páginas: ${data.pages}
-Instruções: ${data.instructions || 'Nenhuma'}
-        `;
-        break;
-
-      case 'report':
-        summary = `
-RELATÓRIO
-
-Tipo: ${data.reportType}
-Período: ${data.period}
-Departamento: ${data.department}
-Dados: ${data.specificData}
-        `;
-        break;
-
-      case 'proposal':
-        summary = `
-PROPOSTA
-
-Tipo: ${data.proposalType}
-Cliente: ${data.client}
-Escopo: ${data.scope}
-Valor: ${data.value}
-Validade: ${data.validity}
-        `;
-        break;
-    }
-
-    return summary;
+    this.currentStep = 0;
+    this.collectedData = {};
   }
 }
 
