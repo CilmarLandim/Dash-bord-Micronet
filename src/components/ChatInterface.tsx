@@ -31,12 +31,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Mensagem inicial
+  // Mensagem inicial com vídeo de apresentação
   useEffect(() => {
     const initialMessage: ChatMessage = {
       id: '0',
       role: 'assistant',
-      content: 'Olá! Bem-vindo ao atendimento virtual da Micronet. Como posso ajudá-lo hoje?',
+      content: 'Olá! Bem-vindo ao atendimento virtual da Micronet. Assista ao vídeo abaixo para conhecer o Método Cilmar Landim e como posso ajudá-lo hoje.',
       timestamp: new Date(),
       type: 'text',
     };
@@ -293,7 +293,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             >
               <p className="text-sm">{message.content}</p>
               
-              {/* Avatar de Vídeo HeyGen para respostas da IA */}
+              {/* Vídeo de Apresentação Fixa na primeira mensagem */}
+              {message.id === '0' && (
+                <HeyGenAvatar videoId="8a46b84bce1d42ada2baa4865ddf9a10" autoPlay={true} />
+              )}
+
+              {/* Avatar de Vídeo Dinâmico para outras respostas da IA */}
               {message.role === 'assistant' && message.type === 'text' && message.id !== '0' && (
                 <HeyGenAvatar text={message.content} />
               )}

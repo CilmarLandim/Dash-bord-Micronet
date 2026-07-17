@@ -3,29 +3,31 @@ import { Loader, Video } from 'lucide-react';
 import trpc from '../services/trpcClient';
 
 interface HeyGenAvatarProps {
-  text: string;
+  text?: string;
+  videoId?: string;
   autoPlay?: boolean;
 }
 
-export const HeyGenAvatar: React.FC<HeyGenAvatarProps> = ({ text, autoPlay = true }) => {
-  const [videoId, setVideoId] = useState<string | null>(null);
+export const HeyGenAvatar: React.FC<HeyGenAvatarProps> = ({ text, videoId: initialVideoId, autoPlay = true }) => {
+  const [videoId, setVideoId] = useState<string | null>(initialVideoId || null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [status, setStatus] = useState<'idle' | 'generating' | 'completed' | 'failed'>('idle');
+  const [status, setStatus] = useState<'idle' | 'generating' | 'completed' | 'failed'>(initialVideoId ? 'generating' : 'idle');
 
   useEffect(() => {
-    if (text && status === 'idle') {
+    if (text && !initialVideoId && status === 'idle') {
       generateVideo();
     }
-  }, [text]);
+  }, [text, initialVideoId]);
 
   const generateVideo = async () => {
+    if (!text) return;
     setStatus('generating');
     try {
       const result = await trpc.video.generateSpeech.mutate({
         text,
-        // Avatar personalizado do usuário
+        // Avatar padrão ou do usuário
         avatarId: '02c3bc88b85f4e2084795dcec7f6c18b',
-        voiceId: 'pt-BR-AntonioNeural', // Usando voz em português
+        voiceId: 'pt-BR-AntonioNeural',
       });
       setVideoId(result.videoId);
     } catch (error) {
@@ -36,7 +38,9 @@ export const HeyGenAvatar: React.FC<HeyGenAvatarProps> = ({ text, autoPlay = tru
 
   useEffect(() => {
     let interval: any;
-    if (videoId && status === 'generating') {
+    if (videoId && (status === 'generating' || status === 'idle')) {
+      if (status === 'idle') setStatus('generating');
+      
       interval = setInterval(async () => {
         try {
           const result = await trpc.video.getStatus.query({ videoId });
