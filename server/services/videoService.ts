@@ -16,7 +16,7 @@ export const videoService = {
   /**
    * Gera um vídeo curto com avatar falando o texto fornecido
    */
-  generateAvatarSpeech: async ({ text, avatarId = 'josh_lite_20230714', voiceId = 'en-US-Standard-C' }: VideoGenerationRequest) => {
+  generateAvatarSpeech: async ({ text, avatarId = '02c3bc88b85f4e2084795dcec7f6c18b', voiceId = 'pt-BR-AntonioNeural' }: VideoGenerationRequest) => {
     if (!HEYGEN_API_KEY) {
       throw new Error('HEYGEN_API_KEY não configurada no ambiente');
     }
