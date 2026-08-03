@@ -31,25 +31,27 @@ export const KeygenManager: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Key className="text-blue-600" />
-            Gerenciador de Chaves (Keygen)
+          <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3 font-display tracking-tight">
+            <div className="bg-primary/10 p-2 rounded-lg">
+              <Key className="text-primary w-6 h-6" />
+            </div>
+            Keygen Era
           </h2>
-          <p className="text-gray-600 text-sm">Gere e gerencie licenças de acesso para o agente.</p>
+          <p className="text-slate-500 text-sm mt-1 font-medium">Controle de licenciamento e acesso ao sistema.</p>
         </div>
       </div>
 
-      <div className="flex gap-4 mb-8 bg-blue-50 p-4 rounded-lg border border-blue-100">
+      <div className="flex gap-4 mb-10 bg-slate-50 p-6 rounded-2xl border border-slate-200">
         <div className="flex-1">
-          <label className="block text-xs font-bold text-blue-700 uppercase mb-1">Prefixo da Chave</label>
+          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Prefixo da Chave</label>
           <input 
             type="text" 
             value={prefix}
             onChange={(e) => setPrefix(e.target.value.toUpperCase())}
-            className="w-full px-3 py-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono text-lg"
             placeholder="Ex: MICRONET"
           />
         </div>
@@ -57,10 +59,10 @@ export const KeygenManager: React.FC = () => {
           <button 
             onClick={() => generateMutation.mutate({ prefix })}
             disabled={generateMutation.isPending}
-            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700 transition disabled:opacity-50"
+            className="flex items-center gap-2 bg-primary text-white px-8 py-3.5 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
           >
             <Plus className="w-5 h-5" />
-            Gerar Nova Chave
+            Gerar Licença
           </button>
         </div>
       </div>

@@ -105,14 +105,14 @@ function App() {
 
   if (!isAuthorized && activeTab !== 'admin') {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full border border-blue-100">
-          <div className="text-center mb-8">
-            <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Key className="w-8 h-8 text-blue-600" />
+      <div className="flex items-center justify-center min-h-screen bg-neutral-light p-4 font-body">
+        <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full border border-slate-200">
+          <div className="text-center mb-10">
+            <div className="bg-primary/10 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 rotate-3">
+              <Key className="w-10 h-10 text-primary -rotate-3" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-800">Ativação Requerida</h1>
-            <p className="text-gray-600">Insira sua chave de licença Micronet para continuar.</p>
+            <h1 className="text-3xl font-black text-slate-800 font-display tracking-tight">Ativação Requerida</h1>
+            <p className="text-slate-500 mt-2">Insira sua chave de licença <span className="text-primary font-bold">Micronet Era</span> para iniciar.</p>
           </div>
           
           <form onSubmit={handleValidateLicense} className="space-y-4">
@@ -130,11 +130,16 @@ function App() {
             <button 
               type="submit"
               disabled={isValidating || !licenseKey}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full bg-primary text-white py-4 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2 text-lg"
             >
               {isValidating ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-              ) : 'Ativar Agora'}
+                <div className="signal-bars !h-4">
+                  <div className="signal-bar !bg-white"></div>
+                  <div className="signal-bar !bg-white"></div>
+                  <div className="signal-bar !bg-white"></div>
+                  <div className="signal-bar !bg-white"></div>
+                </div>
+              ) : 'Ativar Sistema'}
             </button>
           </form>
 
@@ -164,21 +169,33 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+    <div className="min-h-screen bg-neutral-light p-4 font-body">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800">Micronet</h1>
-              <p className="text-gray-600">Agente Virtual de Atendimento</p>
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="bg-primary p-3 rounded-xl shadow-lg shadow-primary/20">
+                <div className="signal-bars !h-6">
+                  <div className="signal-bar !bg-white !w-1"></div>
+                  <div className="signal-bar !bg-white !w-1"></div>
+                  <div className="signal-bar !bg-white !w-1"></div>
+                  <div className="signal-bar !bg-white !w-1"></div>
+                </div>
+              </div>
+              <div>
+                <h1 className="text-4xl font-black text-primary font-display tracking-tight">MICRONET</h1>
+                <p className="text-sm font-bold text-secondary uppercase tracking-widest">Solutions Era</p>
+              </div>
             </div>
-            <div className="flex items-center gap-4 bg-white rounded-lg shadow-md p-4">
-              <div className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-600" />
+            <div className="flex items-center gap-4 bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-secondary/10 p-2 rounded-lg">
+                  <Clock className="w-5 h-5 text-secondary" />
+                </div>
                 <div>
-                  <p className="text-xs text-gray-500">Tempo de uso</p>
-                  <p className="text-lg font-bold text-gray-800">{formatTime(elapsedTime)}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Tempo de Sessão</p>
+                  <p className="text-xl font-bold text-slate-800 font-mono">{formatTime(elapsedTime)}</p>
                 </div>
               </div>
             </div>
@@ -188,35 +205,35 @@ function App() {
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab('chat')}
-              className={`px-4 py-2 rounded-lg font-semibold transition ${
+              className={`px-6 py-2.5 rounded-xl font-bold transition-all duration-200 ${
                 activeTab === 'chat'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-800 hover:bg-gray-100'
+                  ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-105'
+                  : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
               }`}
             >
-              💬 Chat
+              💬 Atendimento
             </button>
             <button
               onClick={() => setActiveTab('info')}
-              className={`px-4 py-2 rounded-lg font-semibold transition ${
+              className={`px-6 py-2.5 rounded-xl font-bold transition-all duration-200 ${
                 activeTab === 'info'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-800 hover:bg-gray-100'
+                  ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-105'
+                  : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
               }`}
             >
               <Info className="w-5 h-5 inline mr-2" />
-              Informações
+              Sobre
             </button>
             <button
               onClick={() => setActiveTab('admin')}
-              className={`px-4 py-2 rounded-lg font-semibold transition ${
+              className={`px-6 py-2.5 rounded-xl font-bold transition-all duration-200 ${
                 activeTab === 'admin'
-                  ? 'bg-gray-800 text-white'
-                  : 'bg-white text-gray-800 hover:bg-gray-100'
+                  ? 'bg-slate-800 text-white shadow-lg shadow-slate-800/30 scale-105'
+                  : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
               }`}
             >
               <Key className="w-5 h-5 inline mr-2" />
-              Admin
+              Painel
             </button>
           </div>
         </div>

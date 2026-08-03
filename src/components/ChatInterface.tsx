@@ -255,13 +255,23 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow-lg">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 rounded-t-lg flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold">Atendimento Virtual Micronet</h2>
-          <p className="text-sm text-blue-100">Fale ou digite sua pergunta</p>
+      <div className="bg-primary text-white p-5 rounded-t-lg flex items-center justify-between border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="bg-white/20 p-2 rounded-lg">
+            <div className="signal-bars !h-4">
+              <div className="signal-bar !bg-white"></div>
+              <div className="signal-bar !bg-white"></div>
+              <div className="signal-bar !bg-white"></div>
+              <div className="signal-bar !bg-white"></div>
+            </div>
+          </div>
+          <div>
+            <h2 className="text-xl font-bold font-display">Micronet Agent</h2>
+            <p className="text-xs text-white/70">Conectividade e Suporte</p>
+          </div>
         </div>
         {activeFlow && (
-          <div className="bg-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
+          <div className="bg-accent text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
             Fluxo: {activeFlow}
           </div>
         )}
@@ -294,8 +304,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
         {sendMessageMutation.isPending && (
           <div className="flex justify-start">
-            <div className="bg-white text-gray-800 border border-gray-200 px-4 py-2 rounded-lg rounded-bl-none">
-              <Loader className="w-5 h-5 animate-spin" />
+            <div className="bg-white text-gray-800 border border-gray-200 px-4 py-3 rounded-lg rounded-bl-none flex items-center gap-3">
+              <div className="signal-bars">
+                <div className="signal-bar"></div>
+                <div className="signal-bar"></div>
+                <div className="signal-bar"></div>
+                <div className="signal-bar"></div>
+              </div>
+              <span className="text-xs font-medium text-primary animate-pulse">Conectando...</span>
             </div>
           </div>
         )}
@@ -323,40 +339,40 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       {/* Input */}
       <div className="border-t border-gray-200 p-4 bg-white rounded-b-lg">
         {!activeFlow && (
-          <div className="w-full grid grid-cols-3 gap-2 mb-3">
+          <div className="w-full grid grid-cols-3 gap-2 mb-4">
             <button
               onClick={() => startFlow('curriculum')}
-              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-semibold"
+              className="px-2 py-2 text-xs bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition font-bold border border-primary/20"
             >
               📄 Currículo
             </button>
             <button
               onClick={() => startFlow('contact')}
-              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-semibold"
+              className="px-2 py-2 text-xs bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition font-bold border border-primary/20"
             >
               📞 Contato
             </button>
             <button
               onClick={() => startFlow('second_copy')}
-              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-semibold"
+              className="px-2 py-2 text-xs bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition font-bold border border-primary/20"
             >
               🔄 2ª Via
             </button>
             <button
               onClick={() => startFlow('research')}
-              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-semibold"
+              className="px-2 py-2 text-xs bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition font-bold border border-primary/20"
             >
               🎓 Pesquisa
             </button>
             <button
               onClick={() => startFlow('report')}
-              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-semibold"
+              className="px-2 py-2 text-xs bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition font-bold border border-primary/20"
             >
               📊 Relatório
             </button>
             <button
               onClick={() => startFlow('proposal')}
-              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-semibold"
+              className="px-2 py-2 text-xs bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition font-bold border border-primary/20"
             >
               💼 Proposta
             </button>
@@ -413,7 +429,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           {/* Botão de Envio */}
           <button
             onClick={handleSendMessage}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold disabled:opacity-50"
+            className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition font-bold disabled:opacity-50 shadow-md shadow-secondary/20"
             disabled={!inputValue.trim() || sendMessageMutation.isPending}
           >
             <Send className="w-5 h-5" />
