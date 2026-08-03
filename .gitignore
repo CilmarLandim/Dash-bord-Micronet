@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+*.db
+*.db-journal
+public/documents/*.pdf
+public/documents/*.docx
+.DS_Store
