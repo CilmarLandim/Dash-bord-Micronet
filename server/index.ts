@@ -5,6 +5,7 @@ import path from 'path';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import { appRouter } from './routers';
 import { createContext } from './context';
+import { whatsappService } from './services/whatsappService';
 
 dotenv.config();
 
@@ -18,6 +19,28 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve documentos estáticos
 app.use('/documents', express.static(path.join(process.cwd(), 'public/documents')));
+
+// Webhook do WhatsApp (Twilio)
+app.post('/api/whatsapp/webhook', async (req, res) => {
+  const { From, Body } = req.body;
+  
+  if (!From || !Body) {
+    return res.status(400).send('Dados incompletos');
+  }
+
+  try {
+    // Processamento assíncrono para responder ao Twilio rapidamente (TwiML)
+    // Nota: O WhatsApp exige resposta em 15s. A IA Claude costuma responder em 2-5s.
+    await whatsappService.processIncomingMessage(From, Body);
+    
+    // Responde com TwiML vazio (já enviamos a resposta via API)
+    res.set('Content-Type', 'text/xml');
+    res.send('<Response></Response>');
+  } catch (error) {
+    console.error('Erro no webhook do WhatsApp:', error);
+    res.status(500).send('Erro interno');
+  }
+});
 
 // tRPC middleware
 app.use(
