@@ -183,48 +183,40 @@ export const adminService = {
     recurrence: string;
   }) => {
     const now = Date.now();
-    const transaction = rawDb.transaction(() => {
-      const task = rawDb.prepare(`
-        INSERT INTO scrum_tasks
-          (title, description, task_type, column_name, amount, created_at, updated_at)
-        VALUES (?, ?, 'fixed_cost', 'in_progress', ?, ?, ?)
-      `).run(
-        `Custo fixo: ${input.description.trim()}`,
-        `Lançamento automático de custo fixo (${input.recurrence}).`,
-        input.amount,
-        now,
-        now,
-      );
+    const task = rawDb.prepare(`
+      INSERT INTO scrum_tasks
+        (title, description, task_type, column_name, amount, created_at, updated_at)
+      VALUES (?, ?, 'fixed_cost', 'in_progress', ?, ?, ?)
+    `).run(
+      `Custo fixo: ${input.description.trim()}`,
+      `Lançamento automático de custo fixo (${input.recurrence}).`,
+      input.amount,
+      now,
+      now,
+    );
 
-      const taskId = Number(task.lastInsertRowid);
-      const cost = rawDb.prepare(`
-        INSERT INTO fixed_costs
-          (task_id, description, amount, recurrence, status, created_at)
-        VALUES (?, ?, ?, ?, 'launched', ?)
-      `).run(taskId, input.description.trim(), input.amount, input.recurrence, now);
+    const taskId = Number(task.lastInsertRowid);
+    const cost = rawDb.prepare(`
+      INSERT INTO fixed_costs
+        (task_id, description, amount, recurrence, status, created_at)
+      VALUES (?, ?, ?, ?, 'launched', ?)
+    `).run(taskId, input.description.trim(), input.amount, input.recurrence, now);
 
-      return { taskId, costId: Number(cost.lastInsertRowid) };
-    });
-
-    return transaction;
+    return { taskId, costId: Number(cost.lastInsertRowid) };
   },
 
   markFixedCostPaid: (costId: number) => {
     const now = Date.now();
-    const transaction = rawDb.transaction(() => {
-      const cost = rawDb.prepare('SELECT task_id AS taskId FROM fixed_costs WHERE id = ?').get(costId) as { taskId: number } | undefined;
-      if (!cost) return false;
+    const cost = rawDb.prepare('SELECT task_id AS taskId FROM fixed_costs WHERE id = ?').get(costId) as unknown as { taskId: number } | undefined;
+    if (!cost) return { success: false };
 
-      rawDb.prepare(`
-        UPDATE fixed_costs SET status = 'paid', paid_at = ? WHERE id = ?
-      `).run(now, costId);
-      rawDb.prepare(`
-        UPDATE scrum_tasks SET column_name = 'done', updated_at = ? WHERE id = ?
-      `).run(now, cost.taskId);
-      return true;
-    });
-
-    return { success: transaction };
+    rawDb.prepare(`
+      UPDATE fixed_costs SET status = 'paid', paid_at = ? WHERE id = ?
+    `).run(now, costId);
+    rawDb.prepare(`
+      UPDATE scrum_tasks SET column_name = 'done', updated_at = ? WHERE id = ?
+    `).run(now, cost.taskId);
+    return { success: true };
   },
 };
 

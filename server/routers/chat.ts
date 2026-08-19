@@ -59,18 +59,11 @@ export const chatRouter = router({
     .input(z.object({
       sessionId: z.string(),
       type: z.enum(['curriculum', 'contact', 'second_copy', 'research', 'report', 'proposal']),
+      format: z.enum(['pdf', 'docx']).default('pdf'),
       data: z.any()
     }))
     .mutation(async ({ input }) => {
       const document = await generateDocument(input.type, input.data);
-      dbService.createDocument({
-        id: document.id,
-        sessionId: input.sessionId,
-        type: input.type,
-        title: input.type,
-        filePath: document.filePath,
-        url: document.url,
-      });
       return document;
     }),
 

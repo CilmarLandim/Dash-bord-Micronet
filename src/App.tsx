@@ -4,6 +4,9 @@ import ChatInterface from './components/ChatInterface';
 import AdminDashboard from './components/AdminDashboard';
 import { trpc } from './services/trpc';
 import { toast } from 'sonner';
+import ScrumBoard from './components/ScrumBoard';
+import ExpenseManager from './components/ExpenseManager';
+import StatisticsBoard from './components/StatisticsBoard';
 
 interface GeneratedDocument {
   id: string;
@@ -14,7 +17,7 @@ interface GeneratedDocument {
 function App() {
   const [sessionId, setSessionId] = useState<string>('');
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [activeTab, setActiveTab] = useState<'chat' | 'info' | 'admin'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'scrum' | 'expenses' | 'statistics' | 'info' | 'admin'>('chat');
   const [licenseKey, setLicenseKey] = useState<string>(localStorage.getItem('micronet_license') || '');
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
@@ -214,6 +217,24 @@ function App() {
               💬 Atendimento
             </button>
             <button
+              onClick={() => setActiveTab('scrum')}
+              className={`px-5 py-2.5 rounded-xl font-bold transition-all duration-200 ${activeTab === 'scrum' ? 'bg-secondary text-white shadow-lg shadow-secondary/30 scale-105' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'}`}
+            >
+              Scrum
+            </button>
+            <button
+              onClick={() => setActiveTab('expenses')}
+              className={`px-5 py-2.5 rounded-xl font-bold transition-all duration-200 ${activeTab === 'expenses' ? 'bg-secondary text-white shadow-lg shadow-secondary/30 scale-105' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'}`}
+            >
+              Despesas
+            </button>
+            <button
+              onClick={() => setActiveTab('statistics')}
+              className={`px-5 py-2.5 rounded-xl font-bold transition-all duration-200 ${activeTab === 'statistics' ? 'bg-secondary text-white shadow-lg shadow-secondary/30 scale-105' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'}`}
+            >
+              Estatísticas
+            </button>
+            <button
               onClick={() => setActiveTab('info')}
               className={`px-6 py-2.5 rounded-xl font-bold transition-all duration-200 ${
                 activeTab === 'info'
@@ -248,6 +269,10 @@ function App() {
                 onDocumentGenerated={handleDocumentGenerated}
               />
             )}
+
+            {activeTab === 'scrum' && <ScrumBoard />}
+            {activeTab === 'expenses' && <ExpenseManager />}
+            {activeTab === 'statistics' && <StatisticsBoard />}
 
             {activeTab === 'info' && (
               <div className="bg-white rounded-lg shadow-lg p-6 space-y-4">

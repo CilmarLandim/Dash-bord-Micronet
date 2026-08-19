@@ -61,65 +61,65 @@ export const rawDb = {
   },
   prepare(sql: string) {
     return {
-      run: (...params: unknown[]) => run(sql, params),
-      get: (...params: unknown[]) => getOne(sql, params),
-      all: (...params: unknown[]) => getRows(sql, params),
+      run(...params: unknown[]) {
+        return run(sql, params);
+      },
+      get(...params: unknown[]) {
+        return getOne(sql, params);
+      },
+      all(...params: unknown[]) {
+        return getRows(sql, params);
+      }
     };
-  },
-  transaction<T>(callback: () => T) {
-    // sql.js mantém o banco em memória; persistimos apenas após concluir o callback.
-    // Isso evita conflitos entre exportação WASM e transações explícitas.
-    const result = callback();
-    persist();
-    return result;
-  },
-  pragma(_statement: string) {
-    // sql.js não precisa de configuração de journal para o uso local do agente.
-  },
+  }
 };
 
 rawDb.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
-    start_time INTEGER NOT NULL,
-    end_time INTEGER,
-    total_time_seconds INTEGER DEFAULT 0
+    start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    end_time DATETIME,
+    total_time_seconds INTEGER DEFAULT 0,
+    metadata TEXT
   );
 
-  CREATE TABLE IF NOT EXISTS chat_messages (
+  CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id TEXT,
-    role TEXT NOT NULL,
-    content TEXT NOT NULL,
-    timestamp INTEGER NOT NULL,
+    role TEXT,
+    content TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(session_id) REFERENCES sessions(id)
   );
 
-  CREATE TABLE IF NOT EXISTS documents (
-    id TEXT PRIMARY KEY,
-    session_id TEXT,
-    type TEXT NOT NULL,
-    title TEXT,
-    file_path TEXT NOT NULL,
-    url TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY(session_id) REFERENCES sessions(id)
+  CREATE TABLE IF NOT EXISTS scrum_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'todo',
+    priority TEXT NOT NULL DEFAULT 'medium',
+    due_date TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  CREATE TABLE IF NOT EXISTS license_keys (
+  CREATE TABLE IF NOT EXISTS expenses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    key TEXT NOT NULL UNIQUE,
-    prefix TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    revoked INTEGER DEFAULT 0
+    description TEXT NOT NULL,
+    amount REAL NOT NULL,
+    category TEXT NOT NULL DEFAULT 'variable',
+    status TEXT NOT NULL DEFAULT 'pending',
+    expense_date TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
 
 export interface DbSession {
   id: string;
-  start_time: number;
-  end_time: number | null;
+  start_time: string;
+  end_time: string | null;
   total_time_seconds: number;
+  metadata: string | null;
 }
 
 export interface DbMessage {
@@ -127,14 +127,38 @@ export interface DbMessage {
   session_id: string;
   role: 'user' | 'assistant';
   content: string;
-  timestamp: number;
+  timestamp: string;
+}
+
+export type ScrumStatus = 'todo' | 'in_progress' | 'done';
+export type Priority = 'low' | 'medium' | 'high';
+export type ExpenseCategory = 'fixed' | 'variable' | 'other';
+export type ExpenseStatus = 'pending' | 'paid' | 'cancelled';
+
+export interface ScrumItem {
+  id: number;
+  title: string;
+  description: string | null;
+  status: ScrumStatus;
+  priority: Priority;
+  due_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Expense {
+  id: number;
+  description: string;
+  amount: number;
+  category: ExpenseCategory;
+  status: ExpenseStatus;
+  expense_date: string;
+  created_at: string;
 }
 
 export const dbService = {
   createSession: (id: string) => {
-    rawDb.prepare(
-      'INSERT INTO sessions (id, start_time, total_time_seconds) VALUES (?, ?, 0)'
-    ).run(id, Date.now());
+    rawDb.prepare('INSERT INTO sessions (id) VALUES (?)').run(id);
     return { id };
   },
 
@@ -142,48 +166,83 @@ export const dbService = {
     return rawDb.prepare('SELECT * FROM sessions WHERE id = ?').get(id) as unknown as DbSession | undefined;
   },
 
+  getSessionMeta: (id: string) => {
+    const session = dbService.getSession(id);
+    return session ? JSON.parse(session.metadata || '{}') : {};
+  },
+
   updateSessionTime: (id: string, seconds: number) => {
     rawDb.prepare('UPDATE sessions SET total_time_seconds = ? WHERE id = ?').run(seconds, id);
   },
 
   endSession: (id: string) => {
-    rawDb.prepare('UPDATE sessions SET end_time = ? WHERE id = ?').run(Date.now(), id);
+    rawDb.prepare('UPDATE sessions SET end_time = CURRENT_TIMESTAMP WHERE id = ?').run(id);
   },
 
   addMessage: (sessionId: string, role: string, content: string) => {
-    rawDb.prepare(
-      'INSERT INTO chat_messages (session_id, role, content, timestamp) VALUES (?, ?, ?, ?)'
-    ).run(sessionId, role, content, Date.now());
+    rawDb.prepare('INSERT INTO messages (session_id, role, content) VALUES (?, ?, ?)').run(sessionId, role, content);
   },
 
   getHistory: (sessionId: string): DbMessage[] => {
-    return rawDb
-      .prepare('SELECT * FROM chat_messages WHERE session_id = ? ORDER BY timestamp ASC, id ASC')
-      .all(sessionId) as unknown as DbMessage[];
+    return rawDb.prepare('SELECT * FROM messages WHERE session_id = ? ORDER BY timestamp ASC').all(sessionId) as unknown as DbMessage[];
   },
 
-  createDocument: (document: {
-    id: string;
-    sessionId?: string;
-    type: string;
-    title?: string;
-    filePath: string;
-    url: string;
-  }) => {
-    rawDb.prepare(
-      `INSERT OR REPLACE INTO documents
-        (id, session_id, type, title, file_path, url, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).run(
-      document.id,
-      document.sessionId || null,
-      document.type,
-      document.title || null,
-      document.filePath,
-      document.url,
-      Date.now(),
-    );
-    return document;
+  listScrumItems: (): ScrumItem[] => {
+    return rawDb.prepare("SELECT * FROM scrum_items ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, created_at DESC").all() as unknown as ScrumItem[];
   },
+
+  createScrumItem: (input: { title: string; description?: string; priority: Priority; dueDate?: string }): ScrumItem => {
+    const res = rawDb.prepare('INSERT INTO scrum_items (title, description, priority, due_date) VALUES (?, ?, ?, ?)').run(input.title, input.description ?? null, input.priority, input.dueDate ?? null);
+    return rawDb.prepare('SELECT * FROM scrum_items WHERE id = ?').get(res.lastInsertRowid) as unknown as ScrumItem;
+  },
+
+  updateScrumItem: (id: number, input: { status?: ScrumStatus; title?: string; description?: string; priority?: Priority; dueDate?: string }): ScrumItem | undefined => {
+    const current = rawDb.prepare('SELECT * FROM scrum_items WHERE id = ?').get(id) as unknown as ScrumItem | undefined;
+    if (!current) return undefined;
+    const next = { ...current, ...input };
+    rawDb.prepare('UPDATE scrum_items SET title = ?, description = ?, status = ?, priority = ?, due_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(next.title, next.description ?? null, next.status, next.priority, next.dueDate ?? next.due_date ?? null, id);
+    return rawDb.prepare('SELECT * FROM scrum_items WHERE id = ?').get(id) as unknown as ScrumItem;
+  },
+
+  deleteScrumItem: (id: number): boolean => {
+    const res = rawDb.prepare('DELETE FROM scrum_items WHERE id = ?').run(id);
+    return res.changes > 0;
+  },
+
+  listExpenses: (): Expense[] => {
+    return rawDb.prepare('SELECT * FROM expenses ORDER BY expense_date DESC, id DESC').all() as unknown as Expense[];
+  },
+
+  createExpense: (input: { description: string; amount: number; category: ExpenseCategory; status: ExpenseStatus; expenseDate: string }): Expense => {
+    const res = rawDb.prepare('INSERT INTO expenses (description, amount, category, status, expense_date) VALUES (?, ?, ?, ?, ?)').run(input.description, input.amount, input.category, input.status, input.expenseDate);
+    if (input.category === 'fixed') {
+      rawDb.prepare("INSERT INTO scrum_items (title, description, priority) VALUES (?, ?, ?)").run(`Lançamento: ${input.description}`, 'Despesa fixa lançada automaticamente.', 'medium');
+    }
+    return rawDb.prepare('SELECT * FROM expenses WHERE id = ?').get(res.lastInsertRowid) as unknown as Expense;
+  },
+
+  updateExpenseStatus: (id: number, status: ExpenseStatus): Expense | undefined => {
+    rawDb.prepare('UPDATE expenses SET status = ? WHERE id = ?').run(status, id);
+    return rawDb.prepare('SELECT * FROM expenses WHERE id = ?').get(id) as unknown as Expense | undefined;
+  },
+
+  deleteExpense: (id: number): boolean => {
+    const res = rawDb.prepare('DELETE FROM expenses WHERE id = ?').run(id);
+    return res.changes > 0;
+  },
+
+  getStatistics: () => {
+    const sessions = rawDb.prepare('SELECT COUNT(*) AS total, COALESCE(SUM(total_time_seconds), 0) AS seconds FROM sessions').get() as { total: number; seconds: number };
+    const messages = rawDb.prepare('SELECT COUNT(*) AS total FROM messages').get() as { total: number };
+    const documents = rawDb.prepare("SELECT COUNT(*) AS total FROM documents").get() as { total: number };
+    const tasks = rawDb.prepare("SELECT status, COUNT(*) AS total FROM scrum_items GROUP BY status").all() as Array<{ status: ScrumStatus; total: number }>;
+    const expenses = rawDb.prepare("SELECT category, COALESCE(SUM(amount), 0) AS total FROM expenses WHERE status != 'cancelled' GROUP BY category").all() as Array<{ category: ExpenseCategory; total: number }>;
+    return {
+      sessions: { total: sessions.total, seconds: sessions.seconds },
+      messages: messages.total,
+      documents: documents.total,
+      tasks,
+      expenses
+    };
+  }
 };
-
