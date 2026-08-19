@@ -110,8 +110,8 @@ export const KeygenManager: React.FC = () => {
           Atenção
         </h4>
         <p className="text-sm text-yellow-700">
-          As chaves geradas são armazenadas em memória no servidor e serão perdidas se o servidor for reiniciado. 
-          Para persistência a longo prazo, conecte um banco de dados.
+          As chaves geradas são persistidas no banco local do agente e continuam disponíveis após reinicializações. 
+          Restrinja o acesso a este painel quando publicar o sistema em produção.
         </p>
       </div>
     </div>

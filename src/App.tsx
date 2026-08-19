@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, FileText, Printer, Info, LayoutDashboard, Key } from 'lucide-react';
 import ChatInterface from './components/ChatInterface';
-import { KeygenManager } from './components/KeygenManager';
+import AdminDashboard from './components/AdminDashboard';
 import { trpc } from './services/trpc';
 import { toast } from 'sonner';
 
@@ -269,7 +269,7 @@ function App() {
             )}
 
             {activeTab === 'admin' && (
-              <KeygenManager />
+              <AdminDashboard />
             )}
           </div>
 

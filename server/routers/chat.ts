@@ -63,7 +63,14 @@ export const chatRouter = router({
     }))
     .mutation(async ({ input }) => {
       const document = await generateDocument(input.type, input.data);
-      // Aqui poderíamos salvar o documento no banco se quisermos uma tabela de docs dedicada
+      dbService.createDocument({
+        id: document.id,
+        sessionId: input.sessionId,
+        type: input.type,
+        title: input.type,
+        filePath: document.filePath,
+        url: document.url,
+      });
       return document;
     }),
 
