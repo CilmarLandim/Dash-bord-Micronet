@@ -75,6 +75,14 @@ export const rawDb = {
 };
 
 rawDb.exec(`
+  CREATE TABLE IF NOT EXISTS license_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT NOT NULL UNIQUE,
+    prefix TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    revoked INTEGER NOT NULL DEFAULT 0
+  );
+
   CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -90,6 +98,16 @@ rawDb.exec(`
     content TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(session_id) REFERENCES sessions(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY,
+    session_id TEXT,
+    type TEXT NOT NULL,
+    title TEXT,
+    file_path TEXT NOT NULL,
+    url TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
   CREATE TABLE IF NOT EXISTS scrum_items (
@@ -185,6 +203,11 @@ export const dbService = {
 
   getHistory: (sessionId: string): DbMessage[] => {
     return rawDb.prepare('SELECT * FROM messages WHERE session_id = ? ORDER BY timestamp ASC').all(sessionId) as unknown as DbMessage[];
+  },
+
+  createDocument: (input: { id: string; sessionId: string; type: string; title: string; filePath: string; url: string }) => {
+    rawDb.prepare('INSERT OR REPLACE INTO documents (id, session_id, type, title, file_path, url) VALUES (?, ?, ?, ?, ?, ?)').run(input.id, input.sessionId, input.type, input.title, input.filePath, input.url);
+    return input;
   },
 
   listScrumItems: (): ScrumItem[] => {
