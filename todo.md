@@ -8,6 +8,14 @@
 - [x] Exibir plano, memória operacional e sugestões rápidas na interface de atendimento.
 - [x] Criar testes unitários para o raciocínio operacional e validar a compilação.
 
+## Extensão de ações supervisionadas
+
+- [x] Criar proposta e confirmação para registro de despesas pelo agente.
+- [x] Implementar geração de documentos DOCX no serviço de documentos.
+- [x] Converter a conclusão dos fluxos de documentos em proposta DOCX confirmável.
+- [x] Ampliar o dispatch de ações do chat para tarefa, despesa e DOCX.
+- [x] Cobrir os novos fluxos com testes e validação local.
+
 ## MVP - Fase 1
 
 ### Frontend

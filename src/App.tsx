@@ -12,6 +12,7 @@ interface GeneratedDocument {
   id: string;
   fileName: string;
   format: 'pdf' | 'docx';
+  url: string;
 }
 
 function App() {
@@ -97,13 +98,10 @@ function App() {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const handleDocumentGenerated = (documentId: string) => {
-    setGeneratedDocument({
-      id: documentId,
-      fileName: `documento_${documentId}`,
-      format: 'pdf',
-    });
-    toast.success(`Documento gerado com sucesso!`);
+  const handleDocumentGenerated = (document: Omit<GeneratedDocument, 'fileName'>) => {
+    const fileName = document.url.split('/').pop() || `documento_${document.id}.${document.format}`;
+    setGeneratedDocument({ ...document, fileName });
+    toast.success(`Documento ${document.format.toUpperCase()} gerado com sucesso!`);
   };
 
   if (!isAuthorized && activeTab !== 'admin') {
@@ -320,10 +318,15 @@ function App() {
                     <FileText className="w-4 h-4" />
                     Documento Gerado
                   </h4>
-                  <p className="text-xs text-green-700 mb-3">{generatedDocument.fileName}.pdf</p>
-                  <button className="w-full bg-green-600 text-white py-2 rounded text-sm font-bold hover:bg-green-700 transition">
+                  <p className="text-xs text-green-700 mb-3">{generatedDocument.fileName}</p>
+                  <a
+                    href={generatedDocument.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full bg-green-600 text-white py-2 rounded text-sm font-bold hover:bg-green-700 transition text-center block"
+                  >
                     Visualizar / Baixar
-                  </button>
+                  </a>
                </div>
             )}
           </div>

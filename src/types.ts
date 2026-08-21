@@ -6,20 +6,54 @@ export interface ChatMessage {
   type?: 'text' | 'image' | 'file';
 }
 
-export type OperationalActionType = 'create_task';
+export type OperationalActionType = 'create_task' | 'create_expense' | 'generate_document';
+export type DocumentType = 'curriculum' | 'contact' | 'second_copy' | 'research' | 'report' | 'proposal';
 
-export interface SuggestedOperationalAction {
-  id: string;
-  type: OperationalActionType;
-  label: string;
-  description: string;
-  payload: {
-    title: string;
-    priority: 'low' | 'medium' | 'high';
-    description?: string;
-  };
-  requiresConfirmation: boolean;
+export interface TaskActionPayload {
+  title: string;
+  priority: 'low' | 'medium' | 'high';
+  description?: string;
 }
+
+export interface ExpenseActionPayload {
+  description: string;
+  amount: number;
+  category: 'fixed' | 'variable' | 'other';
+  status: 'pending' | 'paid' | 'cancelled';
+  expenseDate?: string;
+}
+
+export interface DocumentActionPayload {
+  type: DocumentType;
+  format: 'docx';
+  data: Record<string, unknown>;
+}
+
+export type SuggestedOperationalAction =
+  | {
+      id: string;
+      type: 'create_task';
+      label: string;
+      description: string;
+      payload: TaskActionPayload;
+      requiresConfirmation: boolean;
+    }
+  | {
+      id: string;
+      type: 'create_expense';
+      label: string;
+      description: string;
+      payload: ExpenseActionPayload;
+      requiresConfirmation: boolean;
+    }
+  | {
+      id: string;
+      type: 'generate_document';
+      label: string;
+      description: string;
+      payload: DocumentActionPayload;
+      requiresConfirmation: boolean;
+    };
 
 export interface OperationalSnapshotView {
   generatedAt: string;

@@ -1,14 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Mic, MicOff, Volume2, VolumeX, Loader, X } from 'lucide-react';
-import { ChatMessage, OperationalSnapshotView, SuggestedOperationalAction } from '../types';
+import { ChatMessage, DocumentActionPayload, OperationalSnapshotView, SuggestedOperationalAction } from '../types';
 import { trpc } from '../services/trpc';
 import { voiceService } from '../services/voiceService';
 import { flowService, FlowType } from '../services/flowService';
 import { toast } from 'sonner';
 
+interface GeneratedDocumentSummary {
+  id: string;
+  url: string;
+  format: 'pdf' | 'docx';
+}
+
 interface ChatInterfaceProps {
   sessionId: string;
-  onDocumentGenerated?: (documentId: string) => void;
+  onDocumentGenerated?: (document: GeneratedDocumentSummary) => void;
 }
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -25,27 +31,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [operationalPlan, setOperationalPlan] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // tRPC Mutation para gerar documento
-  const generateDocMutation = trpc.chat.generateDocument.useMutation({
-    onSuccess: (doc) => {
-      toast.success('Documento gerado com sucesso!');
-      onDocumentGenerated?.(doc.id);
-      
-      const assistantMessage: ChatMessage = {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: `📄 Seu documento foi gerado com sucesso! Você pode encontrá-lo em: ${doc.filePath}`,
-        timestamp: new Date(),
-        type: 'text',
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-      voiceService.speak('Seu documento foi gerado com sucesso.');
-    },
-    onError: () => {
-      toast.error('Erro ao gerar documento');
-    }
-  });
 
   // tRPC Mutation para enviar mensagem
   const sendMessageMutation = trpc.chat.sendMessage.useMutation({
@@ -70,12 +55,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         setIsSpeaking(false);
       });
 
-      // Se gerou documento, notifica (ajustado para a estrutura do tRPC)
-      // Nota: No tRPC router atual, o retorno não inclui 'action' explicitamente como no Axios,
-      // mas podemos inferir ou ajustar o router depois. Por enquanto mantemos a lógica.
-      if ((response as any).action === 'generate_document' && (response as any).documentData?.id) {
-        onDocumentGenerated?.((response as any).documentData.id);
-      }
+      // A geração de documentos do fluxo supervisionado é tratada após a confirmação
+      // em executeOperationalAction, pois o arquivo não pode existir antes dela.
     },
     onError: (error) => {
       console.error('Erro ao enviar mensagem:', error);
@@ -98,7 +79,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setSuggestedActions([]);
       setOperationalSnapshot(result.operationalSnapshot);
       setOperationalPlan(['Ação confirmada e registrada na operação.']);
-      toast.success('Ação operacional executada');
+      if ('document' in result && result.document) {
+        onDocumentGenerated?.({
+          id: result.document.id,
+          url: result.document.url,
+          format: result.document.format,
+        });
+        toast.success(`Documento ${result.document.format.toUpperCase()} gerado com sucesso`);
+      } else {
+        toast.success('Ação operacional executada');
+      }
     },
     onError: () => toast.error('Não foi possível executar a ação operacional'),
   });
@@ -124,11 +114,36 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const confirmSuggestedAction = (suggestedAction: SuggestedOperationalAction) => {
-    executeOperationalActionMutation.mutate({
-      sessionId,
-      action: 'create_task',
-      payload: suggestedAction.payload,
-    });
+    if (suggestedAction.type === 'create_task') {
+      executeOperationalActionMutation.mutate({ sessionId, action: 'create_task', payload: suggestedAction.payload });
+      return;
+    }
+    if (suggestedAction.type === 'create_expense') {
+      executeOperationalActionMutation.mutate({ sessionId, action: 'create_expense', payload: suggestedAction.payload });
+      return;
+    }
+    executeOperationalActionMutation.mutate({ sessionId, action: 'generate_document', payload: suggestedAction.payload });
+  };
+
+  const proposeDocxGeneration = (type: FlowType, data: Record<string, unknown>) => {
+    const payload: DocumentActionPayload = { type, format: 'docx', data };
+    const action: SuggestedOperationalAction = {
+      id: `generate-docx-${Date.now()}`,
+      type: 'generate_document',
+      label: 'Confirmar geração do DOCX',
+      description: 'Gerar o arquivo DOCX com os dados coletados neste atendimento.',
+      payload,
+      requiresConfirmation: true,
+    };
+    const assistantMessage: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: 'Fluxo concluído. Revise e confirme a geração do seu documento DOCX.',
+      timestamp: new Date(),
+      type: 'text',
+    };
+    setMessages((prev) => [...prev, assistantMessage]);
+    setSuggestedActions([action]);
   };
 
   // Auto-scroll para o final das mensagens
@@ -186,25 +201,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           const flowData = flowService.getCollectedData();
           const currentFlowType = activeFlow;
           
-          // Gera documento via tRPC
-          generateDocMutation.mutate({
-            sessionId,
-            type: currentFlowType as any,
-            data: flowData
-          });
-
-          const completedMessage: ChatMessage = {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content: '✅ Fluxo concluído! Gerando seu documento...',
-            timestamp: new Date(),
-            type: 'text',
-          };
-          setMessages((prev) => [...prev, completedMessage]);
+          proposeDocxGeneration(currentFlowType, flowData);
           setActiveFlow(null);
           flowService.resetFlow();
-          
-          voiceService.speak(completedMessage.content);
+          voiceService.speak('Fluxo concluído. Confirme a geração do documento DOCX.');
         } else {
           const nextQuestion = flowService.getNextQuestion();
           const nextMessage: ChatMessage = {

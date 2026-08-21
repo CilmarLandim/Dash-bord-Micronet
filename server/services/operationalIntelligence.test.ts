@@ -26,8 +26,11 @@ describe('operationalIntelligence', () => {
     const response = analyzeOperationalIntent('Criar tarefa: revisar contrato urgente', snapshot);
 
     expect(response?.action).toBe('propose_action');
-    expect(response?.suggestedActions?.[0].type).toBe('create_task');
-    expect(response?.suggestedActions?.[0].payload.priority).toBe('high');
+    const action = response?.suggestedActions?.[0];
+    expect(action?.type).toBe('create_task');
+    if (action?.type === 'create_task') {
+      expect(action.payload.priority).toBe('high');
+    }
     expect(response?.message).toContain('sua confirmação');
   });
 
@@ -37,5 +40,33 @@ describe('operationalIntelligence', () => {
     expect(response?.action).toBe('operational_briefing');
     expect(response?.reasoning).toHaveLength(3);
     expect(formatOperationalContext(snapshot)).toContain('Sessões registradas: 8');
+  });
+});
+
+
+describe('ações supervisionadas adicionais', () => {
+  it('prepara uma despesa fixa sem persistir o lançamento', () => {
+    const response = analyzeOperationalIntent('Registrar despesa: Internet; 99,90; fixa', snapshot);
+    const action = response?.suggestedActions?.[0];
+
+    expect(response?.action).toBe('propose_action');
+    expect(action?.type).toBe('create_expense');
+    if (action?.type === 'create_expense') {
+      expect(action.payload.amount).toBe(99.9);
+      expect(action.payload.category).toBe('fixed');
+      expect(action.payload.status).toBe('pending');
+    }
+  });
+
+  it('prepara a geração de DOCX sem gerar o arquivo antes da confirmação', () => {
+    const response = analyzeOperationalIntent('Gerar DOCX: relatório mensal', snapshot);
+    const action = response?.suggestedActions?.[0];
+
+    expect(response?.action).toBe('propose_action');
+    expect(action?.type).toBe('generate_document');
+    if (action?.type === 'generate_document') {
+      expect(action.payload.type).toBe('report');
+      expect(action.payload.format).toBe('docx');
+    }
   });
 });

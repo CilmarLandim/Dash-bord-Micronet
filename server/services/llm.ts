@@ -55,12 +55,11 @@ export async function generateChatResponse(
   }
 }
 
-// Manteve a função de geração de documentos integrada ao llm service por enquanto
 export async function generateDocument(
   type: string,
-  data: any
-): Promise<{ id: string; filePath: string; url: string }> {
-  // Import dinâmico para evitar dependência circular se necessário
-  const { generatePDF } = await import('./documentService');
-  return await generatePDF(type, data);
+  data: Record<string, unknown>,
+  format: 'pdf' | 'docx' = 'pdf',
+): Promise<{ id: string; filePath: string; url: string; format: 'pdf' | 'docx' }> {
+  const { generateDocumentFile } = await import('./documentService');
+  return generateDocumentFile(type, data, format);
 }
