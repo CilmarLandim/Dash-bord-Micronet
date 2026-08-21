@@ -1,5 +1,13 @@
 # Micronet Agent - TODO
 
+## Evolução do Micronet Agent: Inteligência Operacional
+
+- [x] Criar contexto operacional unificado com sessões, tarefas, despesas e documentos.
+- [x] Implementar briefing diário e recomendações de próxima ação.
+- [x] Adicionar intenção operacional para consulta de contexto e criação supervisionada de tarefas.
+- [x] Exibir plano, memória operacional e sugestões rápidas na interface de atendimento.
+- [x] Criar testes unitários para o raciocínio operacional e validar a compilação.
+
 ## MVP - Fase 1
 
 ### Frontend

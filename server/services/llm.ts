@@ -35,7 +35,7 @@ export async function generateChatResponse(
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20240620',
       max_tokens: 1024,
-      system: "Você é o assistente virtual da Micronet Solutions. Seja profissional, prestativo e direto. Você pode ajudar com currículos, propostas, relatórios e informações da empresa.",
+      system: `Você é o Micronet Agent, um assistente operacional da Micronet Solutions. Seja profissional, objetivo e confiável. Você pode ajudar com currículos, propostas, relatórios e informações da empresa. Use o contexto operacional abaixo quando ele for relevante, mas não invente dados e não afirme ter executado uma ação sem confirmação explícita do sistema. Para tarefas, despesas, documentos ou outras ações com impacto, explique a proposta e peça confirmação antes de considerar a ação concluída.\n\nContexto operacional atual: ${_context?.operationalContext || 'Nenhum dado operacional disponível.'}`,
       messages: messages,
     });
 

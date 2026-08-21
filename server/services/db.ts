@@ -174,6 +174,15 @@ export interface Expense {
   created_at: string;
 }
 
+export interface OperationalSnapshot {
+  generatedAt: string;
+  sessions: { total: number; totalSeconds: number };
+  messages: { total: number };
+  documents: { total: number; recent: Array<{ id: string; title: string | null; type: string; created_at: string }> };
+  tasks: { todo: number; inProgress: number; done: number; total: number };
+  expenses: { pendingCount: number; pendingTotal: number; activeTotal: number };
+}
+
 export const dbService = {
   createSession: (id: string) => {
     rawDb.prepare('INSERT INTO sessions (id) VALUES (?)').run(id);
@@ -252,6 +261,34 @@ export const dbService = {
   deleteExpense: (id: number): boolean => {
     const res = rawDb.prepare('DELETE FROM expenses WHERE id = ?').run(id);
     return res.changes > 0;
+  },
+
+  getOperationalSnapshot: (): OperationalSnapshot => {
+    const sessions = rawDb.prepare('SELECT COUNT(*) AS total, COALESCE(SUM(total_time_seconds), 0) AS totalSeconds FROM sessions').get() as unknown as { total: number; totalSeconds: number };
+    const messages = rawDb.prepare('SELECT COUNT(*) AS total FROM messages').get() as unknown as { total: number };
+    const documents = rawDb.prepare('SELECT COUNT(*) AS total FROM documents').get() as unknown as { total: number };
+    const recentDocuments = rawDb.prepare('SELECT id, title, type, created_at FROM documents ORDER BY created_at DESC LIMIT 3').all() as unknown as Array<{ id: string; title: string | null; type: string; created_at: string }>;
+    const taskRows = rawDb.prepare('SELECT status, COUNT(*) AS total FROM scrum_items GROUP BY status').all() as unknown as Array<{ status: ScrumStatus; total: number }>;
+    const expenseTotals = rawDb.prepare("SELECT COUNT(*) AS pendingCount, COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) AS pendingTotal, COALESCE(SUM(CASE WHEN status != 'cancelled' THEN amount ELSE 0 END), 0) AS activeTotal FROM expenses").get() as unknown as { pendingCount: number; pendingTotal: number; activeTotal: number };
+    const taskCount = (status: ScrumStatus) => Number(taskRows.find((task) => task.status === status)?.total ?? 0);
+
+    return {
+      generatedAt: new Date().toISOString(),
+      sessions: { total: Number(sessions.total ?? 0), totalSeconds: Number(sessions.totalSeconds ?? 0) },
+      messages: { total: Number(messages.total ?? 0) },
+      documents: { total: Number(documents.total ?? 0), recent: recentDocuments },
+      tasks: {
+        todo: taskCount('todo'),
+        inProgress: taskCount('in_progress'),
+        done: taskCount('done'),
+        total: taskRows.reduce((sum, task) => sum + Number(task.total), 0),
+      },
+      expenses: {
+        pendingCount: Number(expenseTotals.pendingCount ?? 0),
+        pendingTotal: Number(expenseTotals.pendingTotal ?? 0),
+        activeTotal: Number(expenseTotals.activeTotal ?? 0),
+      },
+    };
   },
 
   getStatistics: () => {

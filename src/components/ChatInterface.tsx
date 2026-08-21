@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Mic, MicOff, Volume2, VolumeX, Loader, X } from 'lucide-react';
-import { ChatMessage } from '../types';
+import { ChatMessage, OperationalSnapshotView, SuggestedOperationalAction } from '../types';
 import { trpc } from '../services/trpc';
 import { voiceService } from '../services/voiceService';
 import { flowService, FlowType } from '../services/flowService';
@@ -20,6 +20,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeFlow, setActiveFlow] = useState<FlowType | null>(null);
+  const [suggestedActions, setSuggestedActions] = useState<SuggestedOperationalAction[]>([]);
+  const [operationalSnapshot, setOperationalSnapshot] = useState<OperationalSnapshotView | null>(null);
+  const [operationalPlan, setOperationalPlan] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -57,6 +60,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+      setSuggestedActions(response.suggestedActions ?? []);
+      setOperationalSnapshot(response.operationalSnapshot ?? null);
+      setOperationalPlan(response.reasoning ?? []);
 
       // Fala a resposta
       setIsSpeaking(true);
@@ -76,6 +82,54 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       toast.error('Erro ao processar sua mensagem');
     }
   });
+
+  const briefingQuery = trpc.chat.getBriefing.useQuery(undefined, { enabled: false });
+
+  const executeOperationalActionMutation = trpc.chat.executeOperationalAction.useMutation({
+    onSuccess: (result) => {
+      const assistantMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: result.message,
+        timestamp: new Date(),
+        type: 'text',
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+      setSuggestedActions([]);
+      setOperationalSnapshot(result.operationalSnapshot);
+      setOperationalPlan(['Ação confirmada e registrada na operação.']);
+      toast.success('Ação operacional executada');
+    },
+    onError: () => toast.error('Não foi possível executar a ação operacional'),
+  });
+
+  const handleBriefing = async () => {
+    const result = await briefingQuery.refetch();
+    if (!result.data) {
+      toast.error('Não foi possível gerar o briefing operacional');
+      return;
+    }
+
+    const briefingMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: result.data.message,
+      timestamp: new Date(),
+      type: 'text',
+    };
+    setMessages((prev) => [...prev, briefingMessage]);
+    setSuggestedActions(result.data.suggestedActions ?? []);
+    setOperationalSnapshot(result.data.operationalSnapshot ?? null);
+    setOperationalPlan(result.data.reasoning ?? []);
+  };
+
+  const confirmSuggestedAction = (suggestedAction: SuggestedOperationalAction) => {
+    executeOperationalActionMutation.mutate({
+      sessionId,
+      action: 'create_task',
+      payload: suggestedAction.payload,
+    });
+  };
 
   // Auto-scroll para o final das mensagens
   useEffect(() => {
@@ -270,10 +324,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <p className="text-xs text-white/70">Conectividade e Suporte</p>
           </div>
         </div>
-        {activeFlow && (
+        {activeFlow ? (
           <div className="bg-accent text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
             Fluxo: {activeFlow}
           </div>
+        ) : (
+          <button
+            onClick={handleBriefing}
+            disabled={briefingQuery.isFetching}
+            className="rounded-lg bg-white/15 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/25 disabled:opacity-60"
+          >
+            {briefingQuery.isFetching ? 'Analisando...' : 'Briefing'}
+          </button>
         )}
       </div>
 
@@ -301,6 +363,43 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
           </div>
         ))}
+
+        {operationalSnapshot && (
+          <section className="rounded-lg border border-blue-200 bg-blue-50/80 p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-primary">Memória operacional</p>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="rounded-md bg-white p-2"><strong className="block text-sm text-slate-800">{operationalSnapshot.tasks.todo + operationalSnapshot.tasks.inProgress}</strong><span className="text-slate-500">tarefas abertas</span></div>
+              <div className="rounded-md bg-white p-2"><strong className="block text-sm text-slate-800">R$ {operationalSnapshot.expenses.pendingTotal.toFixed(2)}</strong><span className="text-slate-500">a pagar</span></div>
+              <div className="rounded-md bg-white p-2"><strong className="block text-sm text-slate-800">{operationalSnapshot.documents.total}</strong><span className="text-slate-500">documentos</span></div>
+            </div>
+            {operationalPlan.length > 0 && (
+              <div className="mt-3 border-t border-blue-100 pt-2">
+                <p className="text-xs font-bold text-slate-700">Plano do agente</p>
+                <ol className="mt-1 space-y-1 pl-4 text-xs text-slate-600">
+                  {operationalPlan.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}
+                </ol>
+              </div>
+            )}
+          </section>
+        )}
+
+        {suggestedActions.length > 0 && (
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-primary">Ação supervisionada</p>
+            {suggestedActions.map((suggestedAction) => (
+              <div key={suggestedAction.id} className="mt-2 rounded-md bg-white p-3 shadow-sm">
+                <p className="text-sm font-semibold text-slate-800">{suggestedAction.description}</p>
+                <button
+                  onClick={() => confirmSuggestedAction(suggestedAction)}
+                  disabled={executeOperationalActionMutation.isPending}
+                  className="mt-2 rounded-md bg-primary px-3 py-2 text-xs font-bold text-white transition hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {executeOperationalActionMutation.isPending ? 'Executando...' : suggestedAction.label}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {sendMessageMutation.isPending && (
           <div className="flex justify-start">
